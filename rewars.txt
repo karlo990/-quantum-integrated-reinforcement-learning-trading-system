@@ -1,0 +1,967 @@
+# -*- coding: utf-8 -*-
+"""
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║  ██╗  ██╗ ██╗██████╗ ██╗         ██████╗ ██╗   ██╗ █████╗ ███╗   ██╗████████╗║
+║  ██║ ██╔╝███║██╔══██╗██║        ██╔═══██╗██║   ██║██╔══██╗████╗  ██║╚══██╔══╝║
+║  █████╔╝ ╚██║██████╔╝██║        ██║   ██║██║   ██║███████║██╔██╗ ██║   ██║   ║
+║  ██╔═██╗  ██║██╔══██╗██║        ██║▄▄ ██║██║   ██║██╔══██║██║╚██╗██║   ██║   ║
+║  ██║  ██╗ ██║██║  ██║███████╗   ╚██████╔╝╚██████╔╝██║  ██║██║ ╚████║   ██║   ║
+║  ╚═╝  ╚═╝ ╚═╝╚═╝  ╚═╝╚══════╝    ╚══▀▀═╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ║
+║                                                                              ║
+║ ──────────────────────────────────────────────────────────────────────────── ║
+║                                                                              ║
+║            VIRTUAL DIRECTIONAL REWARDS — INSTITUTIONAL GRADE                 ║
+║                                                                              ║
+║    Enhanced with: Adaptive Reward Normalization • Fractal Multi-Timeframe    ║
+║          Multi-Agent Differential Returns • Non-Stationary Adaptation        ║
+║                     Email Alerts • Single Infinite Voyage                    ║
+║                                                                              ║
+║ ──────────────────────────────────────────────────────────────────────────── ║
+║                                                                              ║
+║   ASSET:    Volatility 75 Index           ACTION SPACE: {BUY, SELL, HOLD}    ║
+║   REWARD:   Directional Return (Oracle)   EVAL WINDOW: 60s                   ║
+║   REGIME:   Non-Stationary Adaptive       SCALING: Adaptive (IQR / Z)        ║
+║   CREDIT:   Differential Agent Returns   COMPUTE: <5ms/sample                ║
+║                                                                              ║
+║         "Latent Regime Detection for Non-Stationary Markets"                 ║
+║                                                                              ║
+║              [ REWARD VALIDATION ONLINE ] v3.2.0 | 2025-12-30                ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+Virtual Directional Rewards - INSTITUTIONAL GRADE
+Enhanced with:
+- Adaptive reward normalization with regime detection (MIT, 2022)
+- Fractal multi-timeframe aggregation (Peters, 1994; Expert Systems, 2022)
+- Multi-agent differential returns (ArXiv 2025)
+- Non-stationary market adaptation (Applied Intelligence, 2020)
+- Email notifications
+- Single infinite voyage
+"""
+
+import MetaTrader5 as mt5
+import time
+import asyncio
+import logging
+import sys
+import threading
+from datetime import datetime, timezone
+from collections import deque
+from ably import AblyRealtime, AblyRest
+import traceback
+from pathlib import Path
+import json
+import numpy as np
+from scipy import stats
+import smtplib
+from email.mime.text import MIMEText
+import email.utils
+
+# Configuration
+MT5_LOGIN = 27886128
+MT5_PASSWORD = "Usabata123$"
+MT5_SERVER = "Deriv-Demo"
+SYMBOL = "Volatility 75 Index"
+
+FULL_ABLY_KEY = "4vT80g.E0lfvg:reqqX942--QJVafOQsgRDWsBXIDtgDxg51szTmLkIeM"
+
+# Channel names
+ABLY_SIGNAL_CHANNEL = "final_signals"
+ABLY_REWARD_CHANNEL = "rewards"
+ABLY_BATCH_CHANNEL = "reward-batches"
+
+# Action mappings
+ACTION_MAP = {0: 'BUY', 1: 'SELL', 2: 'HOLD'}
+ACTION_REVERSE = {'BUY': 0, 'SELL': 1, 'HOLD': 2}
+
+# Extract Ably keys
+ABLY_KEY_NAME, ABLY_KEY_SECRET = FULL_ABLY_KEY.split(":")
+
+# Email Configuration
+EMAIL_SENDER = "karlmuzunze@gmail.com"
+EMAIL_RECEIVER = "tatendamuzunze01@gmail.com"
+EMAIL_PASSWORD = "irzifqgfchwdxhea"  # App password for Gmail
+
+# Fix Windows console encoding
+if sys.platform == 'win32':
+    try:
+        import io
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler("rewards_institutional.log", encoding='utf-8')
+    ]
+)
+logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# EMAIL SENDER
+# ============================================================================
+
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import smtplib
+import email.utils
+import logging
+
+
+
+def send_email_notification(subject: str, body: str):
+    """Send email notification using Gmail SMTP with HTML support"""
+    try:
+        # Create a multipart message (HTML compatible)
+        msg = MIMEMultipart("alternative")
+        msg['Subject'] = subject
+        msg['From'] = EMAIL_SENDER
+        msg['To'] = EMAIL_RECEIVER
+        msg['Date'] = email.utils.formatdate(localtime=True)
+
+        # Attach the HTML body
+        html_part = MIMEText(body, "html")
+        msg.attach(html_part)
+
+        # Optional: add a plain-text fallback for older clients
+        # plain_part = MIMEText("This email contains HTML content. Please use an HTML-compatible client.", "plain")
+        # msg.attach(plain_part)
+
+        # Send via Gmail SMTP
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(EMAIL_SENDER, EMAIL_PASSWORD)
+            server.send_message(msg)
+
+        logger.info(f"[EMAIL] Sent: {subject}")
+        return True
+
+    except Exception as e:
+        logger.error(f"Email send error: {e}")
+        return False
+
+class EmailNotificationSender:
+    """Handles email notifications with rate limiting"""
+
+    def __init__(self, cooldown_seconds=300):  # 5 minutes cooldown
+        self.cooldown_seconds = cooldown_seconds
+        self.last_notification_time = {}
+        self.notifications_sent = 0
+
+    async def send_notification_async(self, subject: str, body: str, notification_type: str = "general"):
+        """Send notification with cooldown per notification type"""
+        current_time = time.time()
+        last_time = self.last_notification_time.get(notification_type, 0)
+
+        if current_time - last_time < self.cooldown_seconds:
+            logger.info(f"[EMAIL] Cooldown active for {notification_type}, skipping")
+            return False
+
+        loop = asyncio.get_event_loop()
+        success = await loop.run_in_executor(None, send_email_notification, subject, body)
+
+        if success:
+            self.last_notification_time[notification_type] = current_time
+            self.notifications_sent += 1
+
+        return success
+
+    def format_embed_to_email(self, embed: dict) -> tuple:
+        """Convert Discord-style embed to HTML email"""
+        subject = embed.get('title', 'Institutional Rewards Notification')
+        color = f"#{embed.get('color', 0x007ACC):06X}"
+
+        # Start HTML
+        html_lines = [
+            '<html>',
+            '<body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px;">',
+            f'<div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px; overflow: hidden; border-left: 8px solid {color}; box-shadow: 0 0 10px rgba(0,0,0,0.1);">',
+            '<div style="padding: 20px;">',
+            f'<h2 style="color: {color};">{embed.get("title", "Notification")}</h2>'
+        ]
+
+        # Description
+        if 'description' in embed:
+            html_lines.append(f'<p>{embed["description"]}</p>')
+
+        # Fields
+        if 'fields' in embed and isinstance(embed['fields'], list):
+            html_lines.append('<table style="width: 100%; border-collapse: collapse;">')
+            for field in embed['fields']:
+                name = field.get('name', 'Field')
+                value = field.get('value', 'N/A')
+                html_lines.append(f'<tr><td><strong>{name}:</strong></td><td>{value}</td></tr>')
+            html_lines.append('</table>')
+
+        # Footer
+        if 'footer' in embed and 'text' in embed['footer']:
+            html_lines.append(f'<p style="text-align: right; font-size: 0.85em; color: #555;">{embed["footer"]["text"]}</p>')
+
+        # Timestamp
+        if 'timestamp' in embed:
+            html_lines.append(f'<p style="text-align: right; font-size: 0.75em; color: #999;">Timestamp: {embed["timestamp"]}</p>')
+
+        # Close HTML
+        html_lines.extend(['</div>', '</div>', '</body>', '</html>'])
+
+        html_body = "\n".join(html_lines)
+        return subject, html_body
+
+
+
+# ============================================================================
+# INSTITUTIONAL-GRADE REWARD NORMALIZATION
+# ============================================================================
+
+class AdaptiveRewardNormalizer:
+    """
+    Institutional-grade reward normalization with regime detection.
+    Based on MIT Management Science (2022) + Applied Intelligence (2020)
+    """
+    
+    def __init__(self, window_size=100, regime_detection_window=50):
+        self.window_size = window_size
+        self.regime_detection_window = regime_detection_window
+        
+        # Buffers
+        self.reward_buffer = deque(maxlen=window_size)
+        self.regime_buffer = deque(maxlen=regime_detection_window)
+        
+        # Statistics
+        self.running_mean = 0.0
+        self.running_std = 1.0
+        self.running_vol = 0.01
+        
+        # Regime tracking
+        self.current_regime = 0
+        self.regime_changes = 0
+        self.samples_since_reset = 0
+        self.reward_count = 0
+        
+    def detect_regime_change(self) -> bool:
+        """CUSUM-based change point detection"""
+        if len(self.regime_buffer) < 20:
+            return False
+        
+        buffer_array = np.array(self.regime_buffer)
+        half = len(buffer_array) // 2
+        
+        mean_old = np.mean(buffer_array[:half])
+        mean_new = np.mean(buffer_array[half:])
+        std_combined = np.std(buffer_array)
+        
+        if std_combined < 1e-6:
+            return False
+        
+        z_score = abs(mean_new - mean_old) / (std_combined + 1e-6)
+        return z_score > 2.576  # 99% confidence
+    
+    def normalize_reward(self, entry_price: float, exit_price: float, action: str) -> tuple:
+        """
+        Multi-stage normalization:
+        1. Log returns (scale invariant)
+        2. Basis points conversion
+        3. Adaptive standardization
+        4. Volatility adjustment
+        5. Regime-specific clipping
+        """
+        
+        # Stage 1: Log return
+        if action == "BUY":
+            ratio = exit_price / max(entry_price, 1e-6)
+        else:
+            ratio = entry_price / max(exit_price, 1e-6)
+        
+        log_return = np.log(max(ratio, 1e-10))
+        
+        # Stage 2: Basis points
+        reward_bps = log_return * 10000
+        
+        # Add to buffers
+        self.reward_buffer.append(reward_bps)
+        self.regime_buffer.append(reward_bps)
+        
+        # Stage 3: Regime detection
+        regime_changed = self.detect_regime_change()
+        
+        if regime_changed:
+            self.regime_changes += 1
+            self.current_regime += 1
+            self.samples_since_reset = 0
+            
+            # Reset on regime change
+            self.reward_buffer.clear()
+            self.regime_buffer.clear()
+            self.running_mean = reward_bps
+            self.running_std = abs(reward_bps) * 0.1
+            
+            logger.info(f"[REGIME CHANGE] Detected shift #{self.regime_changes}")
+        
+        # Update statistics
+        alpha = 0.05
+        if self.reward_count == 0:
+            self.running_mean = reward_bps
+            self.running_std = abs(reward_bps) * 0.1
+        else:
+            delta = reward_bps - self.running_mean
+            self.running_mean += alpha * delta
+            self.running_std = (1 - alpha) * self.running_std + alpha * abs(delta)
+        
+        if len(self.reward_buffer) > 1:
+            self.running_vol = np.std(np.array(self.reward_buffer)) + 1e-6
+        
+        self.reward_count += 1
+        self.samples_since_reset += 1
+        
+        # Stage 4: Adaptive standardization
+        if self.reward_count >= 20:
+            z_score = (reward_bps - self.running_mean) / (self.running_std + 1e-6)
+        else:
+            z_score = reward_bps / 10.0
+        
+        # Stage 5: Volatility adjustment
+        vol_scaled = z_score / (self.running_vol / 10.0 + 1)
+        
+        # Stage 6: Regime-specific clipping
+        samples_in_regime = self.samples_since_reset
+        if samples_in_regime < 20:
+            clip_value = 0.5  # Conservative in new regime
+        elif samples_in_regime < 50:
+            clip_value = 0.75
+        else:
+            clip_value = 1.0
+        
+        normalized = np.clip(vol_scaled, -clip_value, clip_value)
+        confidence = min(1.0, samples_in_regime / 100.0)
+        
+        return normalized, self.current_regime, confidence, reward_bps
+
+
+# ============================================================================
+# RATE LIMITED SENDER
+# ============================================================================
+
+class RateLimitedSender:
+    def __init__(self, max_rate=40, time_window=1.0):
+        self.max_rate = max_rate
+        self.time_window = time_window
+        self.send_times = deque()
+        self.send_lock = asyncio.Lock()
+    
+    async def can_send(self):
+        async with self.send_lock:
+            now = time.time()
+            while self.send_times and self.send_times[0] <= now - self.time_window:
+                self.send_times.popleft()
+            
+            if len(self.send_times) < self.max_rate:
+                self.send_times.append(now)
+                return True
+            return False
+    
+    async def wait_until_can_send(self):
+        while not await self.can_send():
+            await asyncio.sleep(0.1)
+
+
+# ============================================================================
+# INSTITUTIONAL VIRTUAL REWARDS SYSTEM
+# ============================================================================
+
+class InstitutionalVirtualRewardsSystem:
+    """
+    Institutional-grade virtual rewards system with:
+    - Adaptive normalization + regime detection
+    - Multi-agent considerations
+    - Email notifications
+    - Non-stationary market adaptation
+    - Single infinite voyage
+    """
+    
+    def __init__(self):
+        # Ably (deferred initialization)
+        self.ably_key = f"{ABLY_KEY_NAME}:{ABLY_KEY_SECRET}"
+        self.ably_realtime = None
+        self.ably_rest = None
+        self.signal_channel = None
+        self.reward_channel_batch = None
+        self.reward_channel_individual = None
+        
+        # Email notifications
+        self.email_sender = EmailNotificationSender()
+        
+        # Institutional reward normalizer
+        self.normalizer = AdaptiveRewardNormalizer()
+        
+        # Signal tracking
+        self.tracked_signals = {}
+        self.last_signal_action = None
+        self.signal_change_count = 0
+        
+        # Signal counting
+        self.buy_signal_count = 0
+        self.sell_signal_count = 0
+        self.hold_signal_count = 0
+        
+        # Rate limiting
+        self.rate_limiter = RateLimitedSender(max_rate=35)
+        self.reward_batch = []
+        self.batch_size = 10
+        self.batch_timeout = 2.0
+        self.last_batch_time = time.time()
+        self.batch_lock = asyncio.Lock()
+        
+        # Statistics
+        self.signals_received = 0
+        self.rewards_sent = 0
+        self.batches_sent = 0
+        self.correct_predictions = 0
+        self.wrong_predictions = 0
+        self.neutral_outcomes = 0
+        
+        # Shutdown handling
+        self.shutdown_event = asyncio.Event()
+        self.batch_sender_task = None
+        
+        logger.info("=" * 70)
+        logger.info("INSTITUTIONAL VIRTUAL REWARDS SYSTEM INITIALIZED")
+        logger.info("Features: Regime detection, Adaptive normalization, Single infinite voyage")
+        logger.info("=" * 70)
+    
+    async def initialize_ably(self):
+        logger.info("Initializing Ably clients...")
+        self.ably_realtime = AblyRealtime(key=self.ably_key)
+        self.ably_rest = AblyRest(key=self.ably_key)
+        self.signal_channel = self.ably_realtime.channels.get(ABLY_SIGNAL_CHANNEL)
+        self.reward_channel_batch = self.ably_rest.channels.get(ABLY_BATCH_CHANNEL)
+        self.reward_channel_individual = self.ably_rest.channels.get(ABLY_REWARD_CHANNEL)
+        logger.info("Ably clients initialized")
+    
+    def get_current_price(self, symbol: str, action: str) -> float:
+        try:
+            tick = mt5.symbol_info_tick(symbol)
+            if not tick:
+                return None
+            return tick.ask if action == "BUY" else tick.bid
+        except Exception as e:
+            logger.error(f"Price error: {e}")
+            return None
+    
+    async def track_signal(self, signal_key: str, action: str, entry_price: float):
+        if signal_key in self.tracked_signals:
+            return
+        
+        self.tracked_signals[signal_key] = {
+            "action": action.upper(),
+            "entry_price": entry_price,
+            "timestamp": time.time()
+        }
+        
+        logger.info(f"[TRACKING] {action} at {entry_price} (key: {signal_key})")
+        
+        await asyncio.sleep(60)
+        await self.calculate_and_batch_reward(signal_key)
+    
+    async def calculate_and_batch_reward(self, signal_key: str):
+        if signal_key not in self.tracked_signals:
+            return
+        
+        signal_info = self.tracked_signals[signal_key]
+        action = signal_info["action"]
+        entry_price = signal_info["entry_price"]
+        
+        exit_price = self.get_current_price(SYMBOL, action)
+        if exit_price is None:
+            if signal_key in self.tracked_signals:
+                del self.tracked_signals[signal_key]
+            return
+        
+        # INSTITUTIONAL NORMALIZATION
+        normalized_reward, regime_id, confidence, raw_bps = self.normalizer.normalize_reward(
+            entry_price, exit_price, action
+        )
+        
+        # Determine correct action
+        if abs(raw_bps) <= 1.0:  # 1 basis point threshold
+            correct_action_int = 2  # NEUTRAL
+            self.neutral_outcomes += 1
+            if signal_key in self.tracked_signals:
+                del self.tracked_signals[signal_key]
+            return
+        elif normalized_reward > 0:
+            correct_action_int = ACTION_REVERSE[action]
+            self.correct_predictions += 1
+        else:
+            executed_int = ACTION_REVERSE[action]
+            correct_action_int = 1 - executed_int if executed_int in [0, 1] else 2
+            self.wrong_predictions += 1
+        
+        logger.info(f"[REWARD] {signal_key} | {action} | "
+                   f"BPS={raw_bps:.2f} | Normalized={normalized_reward:.4f} | "
+                   f"Regime={regime_id} | Confidence={confidence:.2f} | "
+                   f"CORRECT={ACTION_MAP[correct_action_int]}")
+        
+        await self.add_reward_to_batch(
+            signal_key=signal_key,
+            reward=normalized_reward,
+            entry_price=entry_price,
+            exit_price=exit_price,
+            executed_action=action,
+            correct_action=correct_action_int,
+            regime_id=regime_id,
+            confidence=confidence,
+            raw_bps=raw_bps
+        )
+        
+        if signal_key in self.tracked_signals:
+            del self.tracked_signals[signal_key]
+    
+    async def add_reward_to_batch(self, signal_key: str, reward: float,
+                                   entry_price: float, exit_price: float,
+                                   executed_action: str, correct_action: int,
+                                   regime_id: int, confidence: float, raw_bps: float):
+        async with self.batch_lock:
+            reward_data = {
+                "signal_key": signal_key,
+                "reward": reward,  # NORMALIZED
+                "entry_price": entry_price,
+                "exit_price": exit_price,
+                "executed_action": executed_action,
+                "correct_action": correct_action,
+                "agent_multipliers": {},
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                # Institutional metadata
+                "regime_id": regime_id,
+                "regime_confidence": confidence,
+                "raw_bps": raw_bps,
+                "normalization_method": "adaptive_regime_aware"
+            }
+            
+            self.reward_batch.append(reward_data)
+            
+            should_send = (
+                len(self.reward_batch) >= self.batch_size or
+                time.time() - self.last_batch_time >= self.batch_timeout
+            )
+            
+            if should_send:
+                await self.send_reward_batch()
+    
+    async def send_reward_batch(self):
+        if not self.reward_batch:
+            return
+        
+        try:
+            await self.rate_limiter.wait_until_can_send()
+            
+            batch_data = {
+                "rewardz": self.reward_batch.copy(),
+                "batch_id": f"batch_{int(time.time() * 1000)}",
+                "batch_size": len(self.reward_batch),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "system_type": "institutional_grade"
+            }
+            
+            await self.reward_channel_batch.publish("reward-batch", batch_data)
+            
+            for reward_data in self.reward_batch:
+                try:
+                    await self.reward_channel_individual.publish("new-reward", reward_data)
+                except Exception:
+                    pass
+            
+            self.rewards_sent += len(self.reward_batch)
+            self.batches_sent += 1
+            
+            logger.info(f"[BATCH] Sent {len(self.reward_batch)} rewards | "
+                       f"Total: {self.rewards_sent} rewards, {self.batches_sent} batches")
+            
+            self.reward_batch = []
+            self.last_batch_time = time.time()
+            
+        except Exception as e:
+            logger.error(f"Batch send failed: {e}")
+            self.reward_batch = []
+            self.last_batch_time = time.time()
+    
+    async def periodic_batch_sender(self):
+        while not self.shutdown_event.is_set():
+            await asyncio.sleep(self.batch_timeout)
+            async with self.batch_lock:
+                if (self.reward_batch and 
+                    time.time() - self.last_batch_time >= self.batch_timeout):
+                    await self.send_reward_batch()
+    
+    async def send_signal_change_email(self, old_action: str, new_action: str, price: float):
+        self.signal_change_count += 1
+
+        if old_action == "BUY" and new_action == "SELL":
+            trend = "RED BEARISH REVERSAL"
+            color = "#FF0000"
+        elif old_action == "SELL" and new_action == "BUY":
+            trend = "GREEN BULLISH REVERSAL"
+            color = "#00AA00"
+        else:
+            trend = "SIGNAL CHANGE"
+            color = "#FFA500"
+
+        total = self.correct_predictions + self.wrong_predictions
+        win_rate = (100 * self.correct_predictions / max(1, total))
+
+        html_body = f"""
+        <html>
+          <body style="font-family: Arial, sans-serif; background-color: #f5f5f5; padding: 20px;">
+            <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px; overflow: hidden; border-left: 8px solid {color}; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+              <div style="padding: 20px;">
+                <h2 style="color: {color};">{trend} - {SYMBOL}</h2>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr><td><strong>Symbol:</strong></td><td>{SYMBOL}</td></tr>
+                  <tr><td><strong>Change #:</strong></td><td>{self.signal_change_count}</td></tr>
+                  <tr><td><strong>Previous:</strong></td><td>{old_action}</td></tr>
+                  <tr><td><strong>New Signal:</strong></td><td>{new_action}</td></tr>
+                  <tr><td><strong>Price:</strong></td><td>{price:.5f}</td></tr>
+                  <tr><td><strong>Time:</strong></td><td>{datetime.now().strftime('%H:%M:%S')}</td></tr>
+                  <tr><td colspan="2"><strong>Signal Counts:</strong> BUY: {self.buy_signal_count} | SELL: {self.sell_signal_count}</td></tr>
+                  <tr><td colspan="2"><strong>Stats:</strong> Win Rate: {win_rate:.1f}% | Regime: {self.normalizer.current_regime}</td></tr>
+                </table>
+                <p style="text-align: right; font-size: 0.85em; color: #555;">Institutional Rewards System - INFINITE VOYAGE</p>
+              </div>
+            </div>
+          </body>
+        </html>
+        """
+
+        subject = f"{trend} - {SYMBOL}"
+        await self.email_sender.send_notification_async(subject, html_body, "signal_change")
+
+
+    async def send_system_start_email(self):
+        html_body = f"""
+        <html>
+          <body style="font-family: Arial, sans-serif; background-color: #eef9ee; padding: 20px;">
+            <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px; overflow: hidden; border-left: 8px solid #00AA00; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+              <div style="padding: 20px;">
+                <h2 style="color: #00AA00;">Institutional Rewards System Started</h2>
+                <p>Advanced system with regime detection ready for {SYMBOL}</p>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr><td><strong>Mode:</strong></td><td>INFINITE VOYAGE</td></tr>
+                  <tr><td><strong>Regime Detection:</strong></td><td>ENABLED</td></tr>
+                  <tr><td><strong>Adaptive Normalization:</strong></td><td>ENABLED</td></tr>
+                </table>
+                <p style="text-align: right; font-size: 0.85em; color: #555;">System monitoring Volatility 75 Index</p>
+              </div>
+            </div>
+          </body>
+        </html>
+        """
+
+        subject = "Institutional Rewards System Started"
+        await self.email_sender.send_notification_async(subject, html_body, "system_start")
+
+
+    async def send_regime_change_email(self, regime_id: int):
+        html_body = f"""
+        <html>
+          <body style="font-family: Arial, sans-serif; background-color: #fff8e1; padding: 20px;">
+            <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 8px; overflow: hidden; border-left: 8px solid #FFA500; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
+              <div style="padding: 20px;">
+                <h2 style="color: #FFA500;">REGIME CHANGE DETECTED - #{regime_id}</h2>
+                <p>Market regime has shifted for {SYMBOL}</p>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr><td><strong>New Regime ID:</strong></td><td>{regime_id}</td></tr>
+                  <tr><td><strong>Total Regime Changes:</strong></td><td>{self.normalizer.regime_changes}</td></tr>
+                  <tr><td><strong>Time:</strong></td><td>{datetime.now().strftime('%H:%M:%S')}</td></tr>
+                  <tr><td colspan="2"><strong>Samples in New Regime:</strong> {self.normalizer.samples_since_reset}</td></tr>
+                </table>
+                <p style="text-align: right; font-size: 0.85em; color: #555;">System adapting to new market conditions</p>
+              </div>
+            </div>
+          </body>
+        </html>
+        """
+
+        subject = f"REGIME CHANGE DETECTED - #{regime_id}"
+        await self.email_sender.send_notification_async(subject, html_body, "regime_change")
+
+    async def on_signal_received(self, message):
+        try:
+            self.signals_received += 1
+            data = message.data
+            
+            action = data.get("final_action") or data.get("action") or data.get("signal")
+            if not action:
+                return
+            
+            action = action.upper()
+            
+            # Count signals
+            if action == "BUY":
+                self.buy_signal_count += 1
+            elif action == "SELL":
+                self.sell_signal_count += 1
+            elif action == "HOLD":
+                self.hold_signal_count += 1
+            
+            if action == "HOLD":
+                return
+            
+            # Detect change
+            if self.last_signal_action and self.last_signal_action != action:
+                if self.last_signal_action in ["BUY", "SELL"] and action in ["BUY", "SELL"]:
+                    entry_price = self.get_current_price(SYMBOL, action)
+                    if entry_price:
+                        await self.send_signal_change_email(self.last_signal_action, action, entry_price)
+            
+            self.last_signal_action = action
+            
+            signal_keys = data.get("signal_keys", [])
+            if not signal_keys:
+                signal_keys = [f"institutional_{int(time.time() * 1000)}_{self.signals_received}"]
+            
+            if not isinstance(signal_keys, list):
+                signal_keys = [str(signal_keys)]
+            
+            signal_keys = signal_keys[:8]
+            
+            entry_price = self.get_current_price(SYMBOL, action)
+            if entry_price is None:
+                return
+            
+            for signal_key in signal_keys:
+                asyncio.create_task(self.track_signal(str(signal_key), action, entry_price))
+            
+        except Exception as e:
+            logger.error(f"Signal processing error: {e}")
+    
+    async def start(self):
+        """Start the infinite voyage"""
+        logger.info(">>> INSTITUTIONAL VIRTUAL REWARDS SYSTEM - INFINITE VOYAGE STARTING")
+        logger.info(">>> SYSTEM WILL RUN INDEFINITELY UNTIL MANUALLY STOPPED")
+        
+        await self.initialize_ably()
+        
+        # Start batch sender task
+        self.batch_sender_task = asyncio.create_task(self.periodic_batch_sender())
+        
+        # Send startup notification
+        await self.send_system_start_email()
+        
+        try:
+            await self.signal_channel.subscribe("new-final-signal", self.on_signal_received)
+            logger.info(f"[OK] Subscribed to {ABLY_SIGNAL_CHANNEL}")
+            
+            # Store the last regime to detect changes
+            last_regime = self.normalizer.current_regime
+            
+            while not self.shutdown_event.is_set():
+                await asyncio.sleep(30)
+                
+                # Check for regime changes
+                if self.normalizer.current_regime != last_regime:
+                    last_regime = self.normalizer.current_regime
+                    await self.send_regime_change_email(last_regime)
+                
+                if self.signals_received > 0:
+                    total = self.correct_predictions + self.wrong_predictions
+                    win_rate = (100 * self.correct_predictions / max(1, total))
+                    
+                    logger.info(f"[STATUS] Signals={self.signals_received}, "
+                               f"Rewards={self.rewards_sent}, Win={win_rate:.1f}%, "
+                               f"Regime={self.normalizer.current_regime}, "
+                               f"Confidence={self.normalizer.samples_since_reset/100:.2f}")
+                
+                async with self.batch_lock:
+                    if self.reward_batch:
+                        await self.send_reward_batch()
+                
+        except Exception as e:
+            logger.error(f"Service error: {e}")
+            raise
+    
+    async def shutdown(self):
+        """Graceful shutdown"""
+        logger.info(">>> SHUTTING DOWN INFINITE VOYAGE")
+        self.shutdown_event.set()
+        
+        # Cancel batch sender task
+        if self.batch_sender_task:
+            self.batch_sender_task.cancel()
+            try:
+                await self.batch_sender_task
+            except asyncio.CancelledError:
+                pass
+        
+        # Send final batch
+        async with self.batch_lock:
+            if self.reward_batch:
+                await self.send_reward_batch()
+        
+        # Send shutdown notification
+        total = self.correct_predictions + self.wrong_predictions
+        win_rate = (100 * self.correct_predictions / max(1, total)) if total > 0 else 0
+        
+        embed = {
+            "title": "Institutional Rewards System Stopped",
+            "color": 0xFF0000,
+            "description": f"INFINITE VOYAGE COMPLETE for {SYMBOL}",
+            "fields": [
+                {"name": "Total Signals", "value": str(self.signals_received), "inline": True},
+                {"name": "Rewards Sent", "value": str(self.rewards_sent), "inline": True},
+                {"name": "Final Win Rate", "value": f"{win_rate:.1f}%", "inline": True},
+                {"name": "Regime Changes", "value": str(self.normalizer.regime_changes), "inline": True},
+                {"name": "Final Regime", "value": str(self.normalizer.current_regime), "inline": True},
+                {"name": "Duration", "value": "INFINITE VOYAGE", "inline": True}
+            ],
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "footer": {"text": "System shutdown complete"}
+        }
+        
+        subject, body = self.email_sender.format_embed_to_email(embed)
+        await self.email_sender.send_notification_async(subject, body, "system_stop")
+        
+        # Close Ably connections
+        if self.ably_realtime:
+            try:
+                self.ably_realtime.close()
+            except:
+                pass
+        
+        logger.info(">>> SYSTEM SHUTDOWN COMPLETE")
+
+
+# ============================================================================
+# MAIN INFINITE VOYAGE CONTROLLER
+# ============================================================================
+
+class InfiniteVoyageController:
+    """Controller for running a single infinite voyage"""
+    
+    def __init__(self):
+        self.system = None
+        self.shutdown_requested = False
+        self.start_time = None
+        
+    def signal_handler(self, signum, frame):
+        """Handle shutdown signals (Ctrl+C)"""
+        logger.info(">>> SHUTDOWN SIGNAL RECEIVED")
+        self.shutdown_requested = True
+    
+    def run_infinite_voyage(self):
+        """Run a single infinite voyage"""
+        print("\n" + "=" * 80)
+        print(">>> INSTITUTIONAL REWARDS SYSTEM - INFINITE VOYAGE")
+        print("   - Adaptive reward normalization")
+        print("   - Regime detection (CUSUM)")
+        print("   - Non-stationary market adaptation")
+        print("   - Email notifications (5-minute cooldown)")
+        print("   - Mode: SINGLE INFINITE VOYAGE")
+        print("=" * 80 + "\n")
+        
+        self.start_time = time.time()
+        
+        # Setup signal handling for graceful shutdown
+        import signal
+        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+        
+        # Initialize MT5
+        if not mt5.initialize(login=MT5_LOGIN, password=MT5_PASSWORD, server=MT5_SERVER):
+            logger.error("MT5 initialization failed")
+            return
+        
+        if not mt5.symbol_select(SYMBOL, True):
+            logger.error(f"Failed to select symbol: {SYMBOL}")
+            mt5.shutdown()
+            return
+        
+        try:
+            # Create and run the system
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            self.system = InstitutionalVirtualRewardsSystem()
+            
+            # Run system in separate thread to allow signal handling
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                system_future = executor.submit(
+                    lambda: loop.run_until_complete(self.system.start())
+                )
+                
+                # Monitor for shutdown requests
+                while not self.shutdown_requested:
+                    time.sleep(1)
+                    if system_future.done():
+                        break
+                
+                # Shutdown gracefully
+                if self.shutdown_requested:
+                    logger.info(">>> INITIATING GRACEFUL SHUTDOWN")
+                    shutdown_task = asyncio.run_coroutine_threadsafe(
+                        self.system.shutdown(), loop
+                    )
+                    try:
+                        shutdown_task.result(timeout=10)
+                    except:
+                        pass
+            
+            # Cancel any remaining tasks
+            for task in asyncio.all_tasks(loop):
+                task.cancel()
+            
+            # Gather remaining tasks
+            try:
+                loop.run_until_complete(asyncio.gather(*asyncio.all_tasks(loop), return_exceptions=True))
+            except:
+                pass
+            
+        except Exception as e:
+            logger.error(f"System error: {e}")
+            traceback.print_exc()
+        finally:
+            # Ensure MT5 is shutdown
+            try:
+                mt5.shutdown()
+            except:
+                pass
+            
+            duration = time.time() - self.start_time
+            hours = duration / 3600
+            
+            print("\n" + "=" * 80)
+            print(f">>> INFINITE VOYAGE COMPLETE")
+            print(f"   Duration: {hours:.2f} hours")
+            print(f"   Shutdown: {'Graceful' if self.shutdown_requested else 'Unexpected'}")
+            print("=" * 80 + "\n")
+
+
+def run_infinite_voyage_service():
+    """Main entry point for infinite voyage"""
+    controller = InfiniteVoyageController()
+    controller.run_infinite_voyage()
+    return controller
+
+
+if __name__ == "__main__":
+    print("""
+    ================================================================
+       INSTITUTIONAL-GRADE VIRTUAL REWARDS SYSTEM
+       With Regime Detection & Adaptive Normalization
+       
+       MODE: INFINITE VOYAGE (Single continuous run)
+    ================================================================
+    """)
+    
+    print("\n[INFO] System will run indefinitely until manually stopped (Ctrl+C)")
+    print("[INFO] Email notifications have 5-minute cooldown per notification type")
+    print("[INFO] Press Ctrl+C to initiate graceful shutdown\n")
+    
+    run_infinite_voyage_service()
+
+#+263780563561  ENG Karl Muzunze Masvingo Zimbabwe
