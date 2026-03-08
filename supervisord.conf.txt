@@ -1,0 +1,136 @@
+# ══════════════════════════════════════════════════════════════════════════════
+# K1RL QUASAR — Supervisor Configuration
+# FIX: Added [unix_http_server] + [supervisorctl] sections (were missing,
+#      causing "Error: .ini file does not include supervisorctl section")
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── Unix socket (required for supervisorctl to talk to the daemon) ──────────
+[unix_http_server]
+file=/var/run/supervisor.sock
+chmod=0700
+
+# ── Supervisor Daemon ───────────────────────────────────────────────────────
+[supervisord]
+nodaemon=true
+user=root
+logfile=/home/user/app/logs/supervisord.log
+pidfile=/var/run/supervisord.pid
+childlogdir=/home/user/app/logs
+loglevel=info
+
+# ── RPC interface (required for supervisorctl status / restart etc.) ────────
+[rpcinterface:supervisor]
+supervisor.rpcinterface_factory = supervisor.rpcinterface:make_main_rpcinterface
+
+# ── supervisorctl client ────────────────────────────────────────────────────
+# FIX: This section was entirely absent — supervisorctl refused to run at all
+[supervisorctl]
+serverurl=unix:///var/run/supervisor.sock
+
+# ── Redis Server ─────────────────────────────────────────────────────────────
+# Priority 100: must be up before any service that uses Redis
+[program:redis]
+command=redis-server /etc/redis/redis.conf
+autostart=true
+autorestart=true
+stdout_logfile=/home/user/app/logs/redis.log
+stderr_logfile=/home/user/app/logs/redis_error.log
+priority=100
+startsecs=3
+startretries=5
+
+# ── Dashboard Service (Port 7860 for HF Spaces) ───────────────────────────
+# FIX: renamed source file reference — dashboard_service.py must exist in
+#      /home/user/app.  If you are using monitoring_dashboard.py, either
+#      rename it or change this command line to match.
+[program:dashboard]
+command=python dashboard_service.py
+directory=/home/user/app
+autostart=true
+autorestart=true
+stdout_logfile=/home/user/app/logs/dashboard.log
+stderr_logfile=/home/user/app/logs/dashboard_error.log
+environment=PYTHONUNBUFFERED="1"
+priority=200
+startsecs=5
+startretries=3
+
+# ── Health Monitor ──────────────────────────────────────────────────────────
+[program:health_monitor]
+command=python health_monitor.py
+directory=/home/user/app
+autostart=true
+autorestart=true
+stdout_logfile=/home/user/app/logs/health_monitor.log
+stderr_logfile=/home/user/app/logs/health_monitor_error.log
+environment=PYTHONUNBUFFERED="1"
+priority=300
+startsecs=5
+startretries=3
+
+# ── Feature Extraction Service (Deriv API → Redis) ────────────────────────
+# Priority 350: Redis (100) must be running first
+[program:features]
+command=python Features.py
+directory=/home/user/app
+autostart=true
+autorestart=true
+stdout_logfile=/home/user/app/logs/features.log
+stderr_logfile=/home/user/app/logs/features_error.log
+environment=PYTHONUNBUFFERED="1"
+priority=350
+startsecs=10
+startretries=3
+
+# ── Rewards Calculation Service ───────────────────────────────────────────
+# Priority 360: Redis (100) + Features (350) must be running first
+[program:rewards]
+command=python Rewards.py
+directory=/home/user/app
+autostart=true
+autorestart=true
+stdout_logfile=/home/user/app/logs/rewards.log
+stderr_logfile=/home/user/app/logs/rewards_error.log
+environment=PYTHONUNBUFFERED="1"
+priority=360
+startsecs=10
+startretries=3
+
+# ── Main QUASAR Engine ───────────────────────────────────────────────────
+# Priority 400: all upstream services must be live first
+[program:quasar_engine]
+command=python quasar_main4.py
+directory=/home/user/app
+autostart=true
+autorestart=true
+stdout_logfile=/home/user/app/logs/quasar_engine.log
+stderr_logfile=/home/user/app/logs/quasar_engine_error.log
+environment=PYTHONUNBUFFERED="1"
+priority=400
+startsecs=10
+startretries=3
+
+# ── Telegram Signal Notifier ──────────────────────────────────────────────
+# Priority 450: needs Redis (100) + QUASAR (400) publishing signals
+[program:telegram_notifier]
+command=python telegram_notifier.py
+directory=/home/user/app
+autostart=true
+autorestart=true
+stdout_logfile=/home/user/app/logs/telegram_notifier.log
+stderr_logfile=/home/user/app/logs/telegram_notifier_error.log
+environment=PYTHONUNBUFFERED="1"
+priority=450
+startsecs=5
+startretries=3
+
+# ── Sleep Prevention (HuggingFace Spaces Keep-Alive) ─────────────────────
+[program:sleep_prevention]
+command=python sleep_prevention.py
+directory=/home/user/app
+autostart=true
+autorestart=true
+stdout_logfile=/home/user/app/logs/sleep_prevention.log
+stderr_logfile=/home/user/app/logs/sleep_prevention_error.log
+environment=PYTHONUNBUFFERED="1"
+priority=500  

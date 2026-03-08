@@ -1,0 +1,658 @@
+{
+  "name": "K1RL_QU1NT V8.7.0 — Quantum Trading Engine Architecture",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# 🔮 K1RL_QU1NT V8.7.0\n## Quantum Trading Engine — Full Architecture\n**quasar_main4.py** · 34,126 lines · 87 classes\n\n**Author:** ENG Karl Muzunze\n**Framework:** PyTorch + TensorFlow + Qiskit\n**Agents:** 8 (xs, s, m, l, xl, xxl, 5m, 10m)\n**Action Space:** BUY / SELL (dim=2)\n**State Dim:** 58 features per timeframe\n**Qubits:** 6 (2⁶ = 64-dim Hilbert space)\n**Buffer:** 100M experiences\n**Architecture:** CTDE (Centralized Training, Decentralized Execution)",
+        "width": 480,
+        "height": 340,
+        "color": 1
+      },
+      "id": "title-banner",
+      "name": "K1RL_QU1NT SYSTEM OVERVIEW",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [0, -200],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## ⬡ LAYER 0 — ENTRY POINT & ORCHESTRATION\nSystem bootstrap, lifecycle management, and voyage control.\n\n**Classes:**\n- `main()` — Entry point (L:33962)\n- `QuantumMetaController` — God-class orchestrator (L:33648)\n\n**Flow:** `main()` → silences logging → creates `QuantumMetaController` → calls `run_forever()` → loops `run_voyage()` endlessly with 10s pauses. Each voyage instantiates the full system, runs it, then cleans up. Periodic resets every 60M minutes.",
+        "width": 550,
+        "height": 220,
+        "color": 7
+      },
+      "id": "layer0-note",
+      "name": "LAYER 0 NOTE",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [560, -200],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════\n// ENTRY POINT: main() — Line 33962\n// ════════════════════════════════════════\n// 1. Silences ALL logging (logging.CRITICAL)\n// 2. Disables: asyncio, matplotlib, qiskit,\n//    websocket, ably, discord, httpx loggers\n// 3. Suppresses warnings module\n// 4. Prints V8.7.0 banner\n// 5. Redirects stdout during init\n// 6. Creates QuantumMetaController\n// 7. Calls controller.run_forever()\n// 8. On KeyboardInterrupt: prints session summary\n\nreturn [{ json: { entry: 'main()', line: 33962, action: 'bootstrap_system' } }];"
+      },
+      "id": "main-entry",
+      "name": "main() Entry Point",
+      "type": "n8n-nodes-base.code",
+      "position": [600, 80],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════\n// QuantumMetaController — Line 33648\n// ════════════════════════════════════════\n// GOD-CLASS: Top-level orchestrator\n//\n// __init__(reset_interval_minutes=60000000)\n//   - Sets voyage_history = []\n//   - Configures reset interval\n//\n// run_voyage():\n//   - Creates fresh environment\n//   - Instantiates IntegratedSignalSystem\n//   - Starts Ably listeners\n//   - Runs main event loop\n//   - Logs voyage stats on completion\n//\n// run_forever():\n//   - while True: run_voyage()\n//   - 10s pause between voyages\n//   - Error recovery with 30s backoff\n//\n// cleanup_voyage():\n//   - Stops Ably connections\n//   - Saves final checkpoint\n//   - Clears GPU memory\n//\n// prepare_fresh_environment():\n//   - Resets all state\n//   - Creates fresh directories\n\nreturn [{ json: { class: 'QuantumMetaController', line: 33648, role: 'orchestrator' } }];"
+      },
+      "id": "quantum-meta-controller",
+      "name": "QuantumMetaController (L:33648)",
+      "type": "n8n-nodes-base.code",
+      "position": [600, 320],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "content": "## 📡 LAYER 1 — INTEGRATED SIGNAL SYSTEM\nThe **heart** of the engine. Central coordinator connecting ALL subsystems.\n\n**IntegratedSignalSystem** (L:23623) — ~10,000 lines\n\n**Responsibilities:**\n- Subscribes to Ably/Redis feature channels (per agent)\n- Routes raw ticks to quantum agents\n- Collects Q-values from all 8 agents\n- Runs voting pipeline (AVN → QuantumVoting)\n- Publishes BUY/SELL signals\n- Stores experiences for training\n- Triggers background training\n- Manages progressive gating\n- Discord notifications\n- Meta-model inference\n- Checkpoint autosaving",
+        "width": 550,
+        "height": 340,
+        "color": 4
+      },
+      "id": "layer1-note",
+      "name": "LAYER 1 NOTE",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [0, 500],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════\n// IntegratedSignalSystem — Line 23623\n// ════════════════════════════════════════\n// MASTER COORDINATOR: ~10,000 lines\n//\n// KEY ATTRIBUTES:\n//   self.agents = {} (8 quantum agents)\n//   self.quantum_bridge = QuantumSystemBridge\n//   self.voting_model = VotingTransformer\n//   self.avn_predictor = AVNPredictor\n//   self.avn_trainer = AVNTrainer\n//   self.meta_model = TF Transformer\n//   self.discord_sender = DiscordWebhookSender\n//   self.discord_notifier = DiscordNotifier\n//   self.safe_task_manager = SafeTaskManager\n//   self.ably_stabilizer = AblyConnectionStabilizer\n//   self.ably_manager = DedicatedAblyConnectionManager\n//\n// KEY METHODS:\n//   process_raw_tick(agent, price_data)\n//   get_latest_state_features(agent)\n//   _fast_voting_predict(q_vals, actions)\n//   store_experience_for_agent(...)\n//   train_supervised(state, action, reward, ...)\n//   _publish_direct(signal_data)\n//   save_state() / load_state()\n//   calculate_signal_confidence(q_vals, actions)\n//   apply_pullback_logic(action, price)\n//   _start_ably_listeners()\n//   diagnose_training_pipeline()\n//   training_health_check()\n\nreturn [{ json: { class: 'IntegratedSignalSystem', line: 23623 } }];"
+      },
+      "id": "integrated-signal-system",
+      "name": "IntegratedSignalSystem (L:23623)",
+      "type": "n8n-nodes-base.code",
+      "position": [600, 600],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════\n// AVN (Attention Voting Network) SUBSYSTEM\n// ════════════════════════════════════════\n// REPLACES legacy VotingTransformer\n//\n// AVNConfig (L:839):\n//   d_model=128, num_heads=8, num_layers=3\n//   dropout=0.1, batch_size=32, train_every=2\n//   temperature=1.0, MC_samples=5\n//\n// AVNFeatureExtractor (L:952) [nn.Module]:\n//   Extracts features from Q-values + entropies\n//   + agent metrics → d_model=128 dim vectors\n//\n// AVNUncertaintyHead (L:1043) [nn.Module]:\n//   MC dropout (5 passes) → epistemic + aleatoric\n//   uncertainty estimation\n//\n// AttentionVotingNetwork (L:1067) [nn.Module]:\n//   Multi-head self-attention across 8 agents\n//   → learned reliability weights\n//   → action logits + uncertainty\n//\n// AVNPredictor (L:1179):\n//   Inference wrapper: input prep → collapse\n//   detection → safety checks → fallback\n//\n// AVNTrainer (L:1323):\n//   Online training via reward callbacks\n//   batch_id tracking, signal_key matching\n//   V8.9: trains every 2 completions\n\nreturn [{ json: { subsystem: 'AVN', classes: 6 } }];"
+      },
+      "id": "avn-subsystem",
+      "name": "AVN Voting Subsystem (L:839-1959)",
+      "type": "n8n-nodes-base.code",
+      "position": [280, 920],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════\n// DISCORD NOTIFICATION SUBSYSTEM\n// ════════════════════════════════════════\n//\n// RateLimitConfig (L:8587):\n//   per_chat_interval=1.5s, bulk_per_sec=20\n//\n// MessagePriority (L:8594):\n//   LOW, NORMAL, HIGH, CRITICAL\n//\n// DiscordMessage (L:8601):\n//   content, embed, priority, timestamp\n//\n// RateLimiter (L:8609):\n//   Token bucket algorithm\n//\n// DiscordWebhookSender (L:8640):\n//   Worker thread + priority queue\n//   Rate-limited webhook delivery\n//\n// DiscordEmbedBuilder (L:8783):\n//   Static builders: signal_change,\n//   reward_update, mode_change\n//\n// DiscordNotifier (L:8846):\n//   High-level notification API\n//\n// QuantumDiscordLogger (L:13183):\n//   Quantum-specific event logging\n//\n// EnhancedDiscordLogger (L:12639):\n//   Full-featured logger with batching\n\nreturn [{ json: { subsystem: 'Discord', classes: 9 } }];"
+      },
+      "id": "discord-subsystem",
+      "name": "Discord Notifications (L:8587-13182)",
+      "type": "n8n-nodes-base.code",
+      "position": [920, 920],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "content": "## ⚛ LAYER 2 — QUANTUM SYSTEM BRIDGE\nAbstraction connecting classical and quantum worlds.\n\n**QuantumSystemBridge** (L:22167)\n\n**Wraps:**\n- `QuantumTradingSystem` (agents)\n- `QuantumVotingSystem` (consensus)\n- `QuantumReplayBuffer` (experience)\n- `QuantumSystemTrainer` (training)\n\n**Key Operations:**\n- Per-agent state cache management\n- Quantum-enhanced prediction routing\n- Multi-agent credit assignment\n- Experience storage with signal_key tracking",
+        "width": 550,
+        "height": 280,
+        "color": 5
+      },
+      "id": "layer2-note",
+      "name": "LAYER 2 NOTE",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [0, 1200],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════\n// QuantumSystemBridge — Line 22167\n// ════════════════════════════════════════\n// ABSTRACTION LAYER: Quantum ↔ Classical\n//\n// COMPOSED OF:\n//   self.quantum_system = QuantumTradingSystem\n//   self.voting_system = QuantumVotingSystem\n//   self.replay_buffer = QuantumReplayBuffer\n//   self.trainer = QuantumSystemTrainer\n//   self.state_cache = {} (per-agent)\n//   self.exploration_manager = ExplorationManager\n//   self.diagnostics = AgentLevelDiagnostics\n//   self.diversity_tracker = DiversityMetricsTracker\n//   self.async_trainer = AsyncTrainingExecutor\n//\n// KEY METHODS:\n//   safe_quantum_predict(state, agent_name)\n//   predict_all_agents_with_metadata()\n//   update_agent_state(agent_name, state)\n//   store_experience_for_agent(agent, state,\n//     action, reward, next_state, done, signal_key)\n//   train_all_agents()\n//   verify_experience_pipeline()\n//   get_system_metrics()\n//   save_quantum_state(path)\n//   load_quantum_state(path)\n\nreturn [{ json: { class: 'QuantumSystemBridge', line: 22167 } }];"
+      },
+      "id": "quantum-system-bridge",
+      "name": "QuantumSystemBridge (L:22167)",
+      "type": "n8n-nodes-base.code",
+      "position": [600, 1300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "content": "## ⚛ LAYER 3 — QUANTUM CORE\nQuantum neural architecture: agents, forecasting, entanglement.\n\n**Quantum Agents × 8:**\nEach agent operates on a specific timeframe\n(xs, s, m, l, xl, xxl, 5m, 10m)\n\n**Quantum Forecasting:**\n6-qubit Qiskit circuits → 64-dim Hilbert space\n→ 30-step price forecasting → Q-value tempering\n\n**Complex-Valued Networks:**\nComplexLinear, ModReLU, ComplexBatchNorm,\nComplexMultiheadAttention\n\n**Entanglement Architecture:**\nShared latent z_shared encodes cross-agent\ninformation; GatedEntanglement caps shared\ninfluence at 30%",
+        "width": 550,
+        "height": 300,
+        "color": 6
+      },
+      "id": "layer3-note",
+      "name": "LAYER 3 NOTE",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [0, 1600],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════\n// QuantumTradingSystem — Line 10232\n// ════════════════════════════════════════\n// TOP-LEVEL CONTAINER for quantum agents\n//\n// __init__(config):\n//   state_dim = 58\n//   action_dim = 2 (BUY/SELL)\n//   hidden_dim = 256\n//   latent_dim = 32\n//   n_agents = 8\n//   agent_names = [xs,s,m,l,xl,xxl,5m,10m]\n//   device = cuda/cpu\n//\n// COMPONENTS:\n//   self.agents = {name: QuantumAgent(...)}\n//   self.experience_manager = ExperienceManager\n//   self.latent_encoder = MLP(58→256→32)\n//   self.quantum_advisor = None (set later)\n//\n// METHODS:\n//   predict(states_dict) → {agent: q_values}\n//   quantum_enhanced_predict(states_dict)\n//     → routes through QuantumForecastingAdvisor\n//   _initialize_agents() → 8× QuantumAgent\n\nreturn [{ json: { class: 'QuantumTradingSystem', line: 10232 } }];"
+      },
+      "id": "quantum-trading-system",
+      "name": "QuantumTradingSystem (L:10232)",
+      "type": "n8n-nodes-base.code",
+      "position": [600, 1680],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════\n// QuantumAgent — Line 21399 [nn.Module]\n// ════════════════════════════════════════\n// INDIVIDUAL QUANTUM AGENT (×8 instances)\n// Timeframes: xs, s, m, l, xl, xxl, 5m, 10m\n//\n// NEURAL NETWORKS:\n//   self.actor = Actor(58, 2, 256)\n//   self.critic = Critic(58, 2, 256)\n//   self.model = Sequential(  # DQN Q-network\n//     Linear(58→256), ReLU, Dropout(0.1),\n//     Linear(256→256), ReLU, Dropout(0.1),\n//     Linear(256→2)\n//   )\n//   self.target_model = copy of model\n//\n// OPTIMIZERS:\n//   self.actor_optimizer = Adam(lr=3e-4)\n//   self.critic_optimizer = Adam(lr=3e-4)\n//   self.optimizer = Adam(lr=3e-4)\n//\n// STATE:\n//   feature_history = deque(maxlen=32)\n//   recent_q_values = deque(maxlen=25)\n//   state_cache = {}\n//   epsilon = 1.0 (decays via 0.9995)\n//   action_history = deque(maxlen=100)\n//\n// METHODS:\n//   forward(x) → Q-values [Q_buy, Q_sell]\n//   update_features(features_input)\n//   predict(add_noise) → q_values\n//   get_discrete_action(q_values) → 0 or 1\n//   get_action(state, epsilon) → action\n//   train_step(state, action, reward, ...)\n//   check_and_rebalance_q_values()\n//     Detects >75% bias → noise injection\n//   update_target(tau=0.003)\n\nreturn [{ json: { class: 'QuantumAgent', line: 21399, instances: 8 } }];"
+      },
+      "id": "quantum-agent",
+      "name": "QuantumAgent ×8 (L:21399)",
+      "type": "n8n-nodes-base.code",
+      "position": [280, 2000],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════\n// QuantumForecastingAdvisor — Line 10872\n// ════════════════════════════════════════\n// [nn.Module] QUANTUM FORECASTING\n//\n// PURPOSE: Uses quantum circuits to forecast\n// future price movements, provides adjustment\n// factors for Q-values (forward-looking)\n//\n// PARAMETERS:\n//   state_dim = 58\n//   forecast_horizon = 30 steps\n//   n_qubits = 6 (2⁶=64 quantum dims)\n//   hidden_dim = 128\n//\n// NEURAL NETWORKS:\n//   state_processor = Sequential(\n//     Linear(58→128), ReLU,\n//     Linear(128→128), ReLU\n//   )\n//   fusion_network = Sequential(\n//     Linear(128+64→128), ReLU, Dropout(0.1)\n//   )\n//   forecast_head = Sequential(\n//     Linear(128→30), Tanh  # bounded [-1,+1]\n//   )\n//   confidence_head = Sequential(\n//     Linear(128→64), ReLU,\n//     Linear(64→30), Sigmoid  # conf [0,1]\n//   )\n//   quantum_feature_normalizer = LayerNorm(64)\n//   input_state_normalizer = LayerNorm(58)\n//\n// QUANTUM CIRCUIT:\n//   6 qubits → RX/RY/RZ rotations\n//   → CNOT entangling gates\n//   → 512 measurement shots\n//   → 64-dim probability vector\n//\n// OUTPUT: forecast[30], confidence[30]\n//   → tempers Q-values for each agent\n\nreturn [{ json: { class: 'QuantumForecastingAdvisor', line: 10872 } }];"
+      },
+      "id": "quantum-forecasting",
+      "name": "QuantumForecastingAdvisor (L:10872)",
+      "type": "n8n-nodes-base.code",
+      "position": [600, 2000],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════\n// COMPLEX-VALUED NEURAL NETWORKS\n// ════════════════════════════════════════\n// Quantum-inspired complex number processing\n//\n// ComplexLinear (L:18465) [nn.Module]:\n//   W_real, W_imag, b_real, b_imag\n//   out_real = x_r·W_r^T - x_i·W_i^T + b_r\n//   out_imag = x_r·W_i^T + x_i·W_r^T + b_i\n//\n// ModReLU (L:18486) [nn.Module]:\n//   magnitude = |z|, phase = z/|z|\n//   ReLU(|z| + b) · phase\n//   (preserves phase, activates magnitude)\n//\n// ComplexBatchNorm (L:18498) [nn.Module]:\n//   Separate BN on real and imaginary parts\n//\n// ComplexMultiheadAttention (L:18508):\n//   Dual MHA: real_attn + imag_attn\n//   Processes complex sequences\n//\n// ComplexLayerNorm (L:15675):\n//   Layer normalization for complex tensors\n\nreturn [{ json: { subsystem: 'ComplexNN', classes: 5 } }];"
+      },
+      "id": "complex-nn",
+      "name": "Complex-Valued NNs (L:18465-18520)",
+      "type": "n8n-nodes-base.code",
+      "position": [920, 2000],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════\n// MULTI-TIMEFRAME ENTANGLEMENT SYSTEM\n// ════════════════════════════════════════\n//\n// TimeframeEncoder (L:18525) [nn.Module]:\n//   Linear(58→64)→LN→ReLU→Dropout→\n//   Linear(64→64)→LN→ReLU\n//   Encodes single timeframe state\n//\n// MultiTimeframeFusion (L:18542) [nn.Module]:\n//   Temporal self-attention across 8 TFs\n//   + learnable timeframe weights (softmax)\n//   → weighted sum → fusion_layer(64→128)\n//   Output: fused latent (batch, 128)\n//\n// MultiTimeframeSharedLatentEncoder (L:18619):\n//   Encodes ALL agents × ALL timeframes\n//   into shared z_shared latent vector\n//   Input: num_agents × action_dim × num_TF\n//   = 8 × 2 × 8 = 128 → MLP → z_shared(32)\n//\n// MultiTimeframeEntangledComplexAgent (L:18708):\n//   Individual entangled agent using complex\n//   networks. Receives state + z_shared\n//\n// RobustLatentEncoder (L:18816) [nn.Module]:\n//   Robust z_shared with spectral norm,\n//   residual connections, gradient clipping\n//\n// MultiTimeframeEntangledComplexAgentSystem\n// (L:19068) [nn.Module]:\n//   FULL SYSTEM: 8 entangled complex agents\n//   + shared latent encoder + fusion\n//   + diversity modules\n//   The core MARL architecture\n\nreturn [{ json: { subsystem: 'Entanglement', classes: 6 } }];"
+      },
+      "id": "entanglement-system",
+      "name": "Multi-TF Entanglement (L:18525-19610)",
+      "type": "n8n-nodes-base.code",
+      "position": [600, 2320],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════\n// QuantumStateEncodingWrapperModule\n// Line 10651 [nn.Module]\n// ════════════════════════════════════════\n// Wraps classical state vectors into\n// quantum state representations using\n// parametric quantum circuits.\n//\n// PROCESS:\n// 1. Classical state (58-dim) → parameter\n//    encoding into qubit rotations\n// 2. RX, RY, RZ gates parametrized by state\n// 3. CNOT entangling layers (2 layers)\n// 4. Measurement → probability distribution\n// 5. Output: 2^6 = 64 quantum features\n//\n// Uses Qiskit AerSimulator backend\n// with 512 measurement shots\n//\n// QuantumFeatureNormalizer (L:10842):\n//   Learnable scale + bias parameters\n//   LayerNorm + clamp(±5.0)\n//   Prevents quantum feature explosion\n\nreturn [{ json: { class: 'QuantumStateEncoding', line: 10651 } }];"
+      },
+      "id": "quantum-state-encoding",
+      "name": "QuantumStateEncoding (L:10651)",
+      "type": "n8n-nodes-base.code",
+      "position": [280, 2320],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "content": "## ▣ LAYER 4 — VOTING & CONSENSUS\nDual voting architecture:\n\n**Action-Level Voting** (for trading decisions):\n8 agents → Q-values → AVN attention weights\n→ QuantumVotingSystem → Final BUY/SELL\n\n**Gradient-Level Voting** (for training optimization):\nMultiple training strategies propose gradients\n→ VotingEnsembleTrainer → Weighted average\n→ Applied gradients\n\n**Anti-Deadlock Mechanisms:**\n- Confidence-based tie breaker\n- Q-value diversity injection\n- Signal diversity enforcement\n- Automatic collapse recovery",
+        "width": 550,
+        "height": 280,
+        "color": 3
+      },
+      "id": "layer4-note",
+      "name": "LAYER 4 NOTE",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [0, 2650],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════\n// QuantumVotingSystem — Line 21745\n// ════════════════════════════════════════\n// CONSENSUS: 8 agents → 1 final action\n//\n// VOTING PROCESS:\n// 1. Each agent produces Q = [Q_buy, Q_sell]\n// 2. action_i = argmax(Q_i)\n// 3. Confidence = |Q_buy - Q_sell|\n// 4. Weighted majority vote\n// 5. Deadlock detection (50/50 split)\n//    → Confidence-based tie breaker\n//    → After 10 consecutive ties: random\n// 6. Q-value diversity injection\n//    (same vote 20× → inject noise)\n// 7. Signal diversity enforcement\n//    (20 identical signals → flip)\n//\n// METHODS:\n//   predict(q_values_dict, ...)\n//     → (final_action, voting_logits)\n//   _majority_vote_fallback(actions_dict)\n//   predict_safe(...) → safe wrapper\n//   collect_training_sample(...)\n//   print_diagnostic_stats()\n//\n// TRACKS:\n//   consecutive_same_votes (per agent)\n//   consecutive_tie_count\n//   vote_distribution history\n\nreturn [{ json: { class: 'QuantumVotingSystem', line: 21745 } }];"
+      },
+      "id": "quantum-voting",
+      "name": "QuantumVotingSystem (L:21745)",
+      "type": "n8n-nodes-base.code",
+      "position": [600, 2720],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════\n// VotingEnsembleTrainer — Line 7576\n// ════════════════════════════════════════\n// GRADIENT-LEVEL VOTING\n//\n// Multiple training strategies compute\n// separate gradients, then VOTE on the\n// optimal update direction.\n//\n// STRATEGIES:\n//   1. Standard TD learning\n//   2. Conservative (lower LR)\n//   3. Aggressive (higher LR)\n//\n// PROCESS:\n// 1. _compute_strategy_gradients(batch)\n//    Each strategy computes its own grads\n// 2. _vote_on_gradients(grads_list)\n//    Measure gradient similarity\n//    (cosine similarity between strategies)\n// 3. _weighted_gradient_average(grads, weights)\n//    Strategy weights based on past loss\n//    reduction performance\n// 4. _apply_gradients(final_grads)\n//    Apply voted-on gradient to model\n// 5. _update_strategy_weights(loss)\n//    EMA update of strategy trust scores\n//\n// STATISTICS:\n//   Per-strategy win rates\n//   Gradient agreement ratios\n//   Loss curves per strategy\n\nreturn [{ json: { class: 'VotingEnsembleTrainer', line: 7576 } }];"
+      },
+      "id": "voting-ensemble",
+      "name": "VotingEnsembleTrainer (L:7576)",
+      "type": "n8n-nodes-base.code",
+      "position": [920, 2720],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "content": "## ♦ LAYER 5 — TRAINING & EXPERIENCE MANAGEMENT\nMARL training with anti-collapse mechanisms.\n\n**Training Paradigm:** CTDE\n- **Centralized Training:** Shared latent z_shared,\n  mixing networks (QMIX/VDN/COMA)\n- **Decentralized Execution:** Each agent acts\n  independently using local observation\n\n**Anti-Collapse (V5.0.6):**\n- Entropy bonus: -β·H(π) in actor loss\n- Q-spread loss: -log(var+ε)\n- Temperature-scaled exploration\n- Per-agent epsilon boosting\n- Soft reset (noise injection)\n- GatedEntanglement (30% cap)\n\n**References:**\n- Haarnoja 2018: SAC entropy\n- Rashid 2018: QMIX\n- Sunehag 2018: VDN\n- Foerster 2018: COMA\n- Sokar 2023: ReDo (dormant neurons)\n- Lyle 2023: Feature rank regularization",
+        "width": 550,
+        "height": 420,
+        "color": 2
+      },
+      "id": "layer5-note",
+      "name": "LAYER 5 NOTE",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [0, 3060],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════\n// QuantumSystemTrainer — Line 19610\n// ════════════════════════════════════════\n// MAIN TRAINING LOOP\n//\n// __init__(system, buffer, batch_size=64,\n//          gamma=0.92, ent_coef=0.01):\n//   self.system = MultiTimeframeEntangled...\n//   self.buffer = QuantumReplayBuffer\n//   self.voting_ensemble = VotingEnsembleTrainer\n//   self.diagnostics = AgentLevelDiagnostics\n//   self.exploration_mgr = ExplorationManager\n//   self.diversity_loss = DiversityLoss\n//\n// train_step(batch_size):\n//   1. Sample batch from buffer\n//   2. Forward pass (all agents)\n//   3. Compute per-agent losses:\n//      a. TD error (Huber loss)\n//      b. Actor loss = -Q(s,a) - β·H(π)\n//      c. Diversity loss (-log(var))\n//   4. Backward + gradient clipping (5.0)\n//   5. Check collapsed agents\n//   6. Print training metrics\n//\n// _check_and_recover_collapsed_agents():\n//   If entropy < 0.15 for 10 consecutive:\n//   → _soft_reset_agent(name)\n//   → Noise injection to weights\n//   → Boost epsilon to 0.5\n//\n// _get_entropy_coef():\n//   Warmup: 0→100 steps, coef 0.05→0.1\n//   Hold: 100→5000 steps, coef = 0.1\n//   Decay: 5000+ steps, coef → 0.01\n//\n// _print_training_metrics():\n//   Per-agent table with:\n//   Q-Mean, Q-Std, Q-Spread, BUY%,\n//   SELL%, Entropy, Samples, Status\n//   Status: ✅OK 🔴COLL 🟡LOW-H 🟠SAT\n\nreturn [{ json: { class: 'QuantumSystemTrainer', line: 19610 } }];"
+      },
+      "id": "quantum-trainer",
+      "name": "QuantumSystemTrainer (L:19610)",
+      "type": "n8n-nodes-base.code",
+      "position": [600, 3100],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════\n// MIXING NETWORKS & VALUE DECOMPOSITION\n// ════════════════════════════════════════\n//\n// QMIXMixingNetwork (L:2626) [nn.Module]:\n//   Monotonic mixing (Rashid et al. 2018)\n//   Hypernetwork: global_state → W1, b1, W2, b2\n//   Q_tot = f(Q_1, Q_2, ..., Q_n; state)\n//   where ∂Q_tot/∂Q_i ≥ 0 (monotonic)\n//   Ensures: argmax Q_tot = argmax Q_i\n//\n// VDNMixingNetwork (L:2686) [nn.Module]:\n//   Simple additive (Sunehag et al. 2018)\n//   Q_tot = Σ_i Q_i (weighted)\n//   Simplest value decomposition\n//\n// COMACounterfactualCritic (L:2700) [nn.Module]:\n//   COMA (Foerster et al. 2018)\n//   Counterfactual baseline:\n//   A_i = Q(s,a) - Σ_a' π_i(a'|o)·Q(s,(a_{-i},a'))\n//   Proper credit assignment per agent\n//\n// CreditAssignmentMethod (L:1960) [Enum]:\n//   COMA, DIFFERENCE_REWARDS, QMIX,\n//   VDN, UNIFORM\n\nreturn [{ json: { subsystem: 'MixingNetworks', classes: 4 } }];"
+      },
+      "id": "mixing-networks",
+      "name": "Mixing Networks (L:2626-2845)",
+      "type": "n8n-nodes-base.code",
+      "position": [280, 3440],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════\n// DIVERSITY & ANTI-COLLAPSE MODULES\n// ════════════════════════════════════════\n//\n// DiversityLoss (L:3273) [nn.Module]:\n//   Multi-component loss:\n//   1. Action entropy loss:\n//      -Σ p(a)·log(p(a)) per agent\n//   2. Disagreement loss:\n//      Penalizes >80% agent agreement\n//   3. Q-spread loss (V5.0.6 FIX):\n//      -log(var(Q) + ε) [NOT 1/(var+ε)]\n//      Continuous gradient signal\n//   4. Correlation penalty:\n//      Penalizes pairwise Q-value similarity\n//   5. Range penalty:\n//      Penalizes Q-value magnitude collapse\n//\n// AgentLevelDiagnostics (L:3518):\n//   compute_policy_entropy(probs)\n//   compute_action_correlation(actions)\n//   compute_gradient_stats(grads)\n//   compute_td_error_stats()\n//   detect_policy_collapse() [H < 0.15]\n//   detect_overcoordination() [>90%]\n//   detect_gradient_suppression()\n//\n// ExplorationManager (L:4090):\n//   Temperature-scaled softmax\n//   Per-agent epsilon (entropy-based)\n//   Collapsed: 30% random actions\n//   Temperature annealing schedule\n//\n// GatedEntanglement (L:4325) [nn.Module]:\n//   Learnable gate: max_gate=0.3\n//   state_input → gate_net → sigmoid\n//   output = (1-gate)·local + gate·shared\n//   Caps z_shared at 30%\n//\n// AgentSpecificLatentProjector (L:3194):\n//   Per-agent MLP heads project z_shared\n//   into agent-specific representations\n//\n// AdaptiveCoordinationModule (L:4421):\n//   Confidence-weighted blending\n//   High conf → more local autonomy\n//\n// TimeframeStateAugmenter (L:4506):\n//   Temporal embeddings + noise injection\n//   Prevents state staleness\n//\n// DiversityMetricsTracker (L:4570):\n//   Rolling window (1000 steps) tracking\n\nreturn [{ json: { subsystem: 'AntiCollapse', classes: 8 } }];"
+      },
+      "id": "anti-collapse",
+      "name": "Anti-Collapse Modules (L:3194-4689)",
+      "type": "n8n-nodes-base.code",
+      "position": [600, 3440],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════\n// EXPERIENCE BUFFERS & DATA MANAGEMENT\n// ════════════════════════════════════════\n//\n// QuantumReplayBuffer (L:21339):\n//   max_size = 5,000,000\n//   Stores: state_seq, action, reward,\n//   next_state_seq, done, signal_key\n//   Random sampling for training\n//\n// MultiAgentExperienceReplay (L:2313):\n//   CTDE-aware buffer\n//   Per-agent sampling\n//   Joint batch sampling (for QMIX/VDN)\n//   Priority updates (TD error based)\n//   Min ready size: 64 experiences\n//\n// PrioritizedReplayBuffer (L:9624):\n//   Prioritized ER (Schaul et al. 2015)\n//   α=0.6 (prioritization exponent)\n//   β=0.4→1.0 (importance sampling)\n//   Sum-tree for efficient sampling\n//\n// ConcurrentStateCollector (L:2555):\n//   Thread-safe state management\n//   Freshness timestamps per agent/TF\n//   Staleness detection\n//\n// AsyncTrainingExecutor (L:4689):\n//   ThreadPoolExecutor(max_workers=1)\n//   Non-blocking training submission\n//   Prevents data starvation during\n//   20-60s training cycles\n//\n// AsyncSignalPublisher (L:4882):\n//   Non-blocking signal publishing\n//   10s timeout, 2 retries\n//   Prevents Ably timeouts from\n//   blocking event loop\n//\n// MultiAgentExperience (L:2189) [dataclass]:\n//   Full experience with per-agent\n//   credit assignment and advantages\n//\n// AgentSpecificExperience (L:2297) [dataclass]:\n//   Single agent's view of experience\n\nreturn [{ json: { subsystem: 'Buffers', classes: 8 } }];"
+      },
+      "id": "experience-buffers",
+      "name": "Experience Buffers (L:2189-4882)",
+      "type": "n8n-nodes-base.code",
+      "position": [920, 3440],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "content": "## ⬡ LAYER 6 — INFRASTRUCTURE\nReal-time messaging, checkpoints, monitoring.\n\n**Communication:**\n- Ably WebSocket (DedicatedAblyConnectionManager)\n- Redis pub/sub (DedicatedRedisConnectionManager)\n- Discord webhooks (rate-limited)\n\n**Checkpoint System:**\n- Google Cloud Storage\n- HuggingFace Hub\n- Local filesystem\n- Multi-instrument indexing\n- Component-level fallback recovery\n\n**Monitoring:**\n- HealthMonitor (component-level)\n- State freshness watchdog\n- Ably connection watchdog\n- Training pipeline diagnostics",
+        "width": 550,
+        "height": 300,
+        "color": 7
+      },
+      "id": "layer6-note",
+      "name": "LAYER 6 NOTE",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [0, 3900],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════\n// DedicatedAblyConnectionManager — Line 30974\n// ════════════════════════════════════════\n// DEDICATED THREAD for Ably WebSocket\n//\n// GUARANTEES:\n//   Heartbeat processing < 25s (RTN spec)\n//   Training never blocks Ably processing\n//   Feature data flows to all agents\n//   Rewards processed without starvation\n//\n// __init__(api_key, channels_config):\n//   self._thread = Thread (daemon)\n//   self._command_queue = Queue\n//   self._ably_client = AblyRealtime\n//   self._subscriptions = {}\n//   self._running = True\n//\n// _run_ably_loop():\n//   Creates event loop in dedicated thread\n//   Initializes AblyRealtime client\n//   Sets up connection listeners\n//   Runs: _process_commands() + _monitor_heartbeat()\n//\n// COMMAND HANDLING:\n//   subscribe(channel, callback)\n//     → queues SUBSCRIBE command\n//   publish(channel, message, event)\n//     → queues PUBLISH command\n//   get_state(timeout=1.0)\n//     → returns connection state\n//\n// RECONNECTION:\n//   on_disconnected → schedule_reconnect()\n//   Exponential backoff: 2→4→8→16→30s\n//   on_connected → resubscribe all channels\n//\n// CHANNELS SUBSCRIBED:\n//   Per agent: features:{agent}, meta:{agent}\n//   Global: rewards, reward-batches,\n//   rewards:v250, confirmations, shutdown\n\nreturn [{ json: { class: 'DedicatedAblyConnectionManager', line: 30974 } }];"
+      },
+      "id": "ably-manager",
+      "name": "DedicatedAblyConnectionManager (L:30974)",
+      "type": "n8n-nodes-base.code",
+      "position": [280, 3980],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════\n// MultiInstrumentCheckpointManager\n// Line 5337 (~2000 lines)\n// ════════════════════════════════════════\n// COMPREHENSIVE CHECKPOINT SYSTEM\n//\n// STORAGE BACKENDS:\n//   1. Local filesystem\n//   2. Google Cloud Storage (GCS)\n//   3. HuggingFace Hub (HfApi)\n//\n// INDEX HIERARCHY:\n//   Master Index → Instrument Index → Voyage Index\n//   Tracks: current instrument, current voyage,\n//   all checkpoints with training steps\n//\n// INSTRUMENTS (Enum L:5120):\n//   Volatility_75, Volatility_10,\n//   Range_Break_100, Range_Break_200,\n//   Crash_1000, Boom_1000, etc.\n//\n// SAVE (save_checkpoint):\n//   Saves ALL components:\n//   - quantum_system state_dict\n//   - all 8 agent state_dicts\n//   - all optimizers\n//   - replay buffer\n//   - training_steps\n//   - voting_model\n//   - AVN model + trainer\n//   - exploration_manager\n//   → Local + GCS upload\n//\n// LOAD (load_checkpoint):\n//   Component-level fallback:\n//   If one component fails, others still load\n//   RecoveryMode: STRICT/GRACEFUL/FORCE_REINIT\n//   Tries current voyage → previous voyages\n//   → previous instruments\n//\n// MAINTENANCE:\n//   cleanup_old_voyage_checkpoints()\n//   scan_hf_and_rebuild_index()\n//   validate_and_clean_voyage_index()\n//   Async save worker thread\n\nreturn [{ json: { class: 'MultiInstrumentCheckpointManager', line: 5337 } }];"
+      },
+      "id": "checkpoint-manager",
+      "name": "CheckpointManager (L:5337)",
+      "type": "n8n-nodes-base.code",
+      "position": [600, 3980],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "// ════════════════════════════════════════\n// MONITORING & HEALTH SYSTEMS\n// ════════════════════════════════════════\n//\n// HealthMonitor (L:7471):\n//   Per-component error/success tracking\n//   Health status: healthy/degraded/critical\n//   Error threshold: >10 = degraded\n//   print_health_report()\n//\n// RobustConfig (L:7235):\n//   @retry decorator with exponential backoff\n//   @timeout decorator with configurable limit\n//   For network operations (GCS, HF, Ably)\n//\n// AblyConnectionStabilizer (L:9121):\n//   Monitors Ably WebSocket state\n//   is_connected() check\n//   should_check_connection() (periodic)\n//   safe_exception_handler(loop, context)\n//\n// SafeTaskManager (L:9066):\n//   Asyncio task lifecycle management\n//   create_safe_task(coro, name)\n//   _cleanup_task(task)\n//   cancel_all_tasks()\n//\n// AutosaveManager (L:14061):\n//   Periodic state/model autosave\n//   Configurable interval\n\nreturn [{ json: { subsystem: 'Monitoring', classes: 5 } }];"
+      },
+      "id": "monitoring",
+      "name": "Monitoring & Health (L:7235-9121)",
+      "type": "n8n-nodes-base.code",
+      "position": [920, 3980],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "content": "## 🔄 DATA PIPELINE — 3-TIER ARCHITECTURE\n\n**Tier 1: EnhancedIngestionTier** (L:14177)\n→ Raw tick data from Ably/Redis → validation\n\n**Tier 2: EnhancedGPUProcessingTier** (L:14428)\n→ GPU feature computation → quantum encoding\n\n**Tier 3: AnalyticsTier** (L:14771)\n→ Signal analytics → performance tracking\n\n**Coordinator: TradingSystemIntegrationManager** (L:14945)\n\n**Supporting:**\n- CandleBuilder (L:17231): OHLCV from ticks\n- DynamicThreshold (L:17275): Adaptive thresholds\n  using kurtosis/skewness (scipy.stats)\n- RewardBatchProcessor (L:17453): Reward matching\n  + per-agent credit distribution",
+        "width": 550,
+        "height": 300,
+        "color": 4
+      },
+      "id": "data-pipeline-note",
+      "name": "DATA PIPELINE NOTE",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [1240, 3900],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## 📊 GLOBAL CONSTANTS & HYPERPARAMETERS\n\n| Constant | Value |\n|---|---|\n| TIMEFRAMES | xs,s,m,l,xl,xxl,5m,10m |\n| STATE_DIM | 58 |\n| ACTION_DIM | 2 (BUY/SELL) |\n| HIDDEN_DIM | 256 |\n| LATENT_DIM | 32 |\n| NUM_HEADS | 8 |\n| NUM_LAYERS | 3 |\n| LEARNING_RATE | 3e-4 |\n| BATCH_SIZE | 32 / 64 |\n| BUFFER_SIZE | 100,000,000 |\n| GAMMA | 0.94 |\n| TAU | 0.003 |\n| GRADIENT_CLIP | 5.0 |\n| EPSILON_START | 1.0 |\n| EPSILON_END | 0.45 |\n| EPSILON_DECAY | 0.9995 |\n| QUANTUM_N_QUBITS | 6 |\n| QUANTUM_N_LAYERS | 2 |\n| ENTANGLEMENT_STRENGTH | 0.25 |\n| MEASUREMENT_SHOTS | 512 |\n| QUANTUM_WEIGHT | 0.15 |\n| FEATURE_WINDOW | 10 candles |\n| AVN d_model | 128 |\n| AVN MC_SAMPLES | 5 |",
+        "width": 440,
+        "height": 520,
+        "color": 6
+      },
+      "id": "constants-note",
+      "name": "CONSTANTS",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [1240, -200],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## 🧪 LEGACY / ALTERNATE MODULES\n\n**Actor/Critic (v2)** (L:16139/16196):\nTD3 continuous actor-critic pair\n\n**TD3Agent** (L:16298):\nTwin Delayed DDPG agent\n\n**TimeframeAgent** (L:16662):\nLegacy per-TF agent with CandleBuilder\n\n**VotingTransformer** (L:15842):\nLegacy Transformer voting (→ replaced by AVN)\n\n**ResidualBiLSTMBlock** (L:15983):\nBidirectional LSTM with residual\n\n**TemporalCNN** (L:16076):\nDilated temporal convolutions\n\n**ConvPreprocessor** (L:15784):\n1D CNN for temporal features\n\n**PositionalEncoding** (L:15649):\nTF Keras sinusoidal encoding\n\n**TransformerBlock** (L:15699):\nTF Keras Transformer block for meta-model\n\n**OUNoise** (L:15963):\nOrnstein-Uhlenbeck exploration noise\n\n**MetaModelTrainer** (L:15338):\nTF meta-model Transformer training\n\n**MetaModelExperienceBuffer** (L:17179):\nBuffer for TF meta-model",
+        "width": 440,
+        "height": 520,
+        "color": 3
+      },
+      "id": "legacy-note",
+      "name": "LEGACY MODULES",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [1240, 380],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## 🔗 EXTERNAL DEPENDENCIES\n\n**Deep Learning:**\n- PyTorch (torch, nn, optim)\n- TensorFlow / Keras\n\n**Quantum:**\n- Qiskit (quantum circuits)\n\n**ML/Stats:**\n- scikit-learn (StandardScaler, LogisticRegression)\n- scipy.stats (kurtosis, skew)\n- numpy, pandas\n\n**Communication:**\n- Ably (WebSocket real-time messaging)\n- Redis (pub/sub alternative)\n- Discord (webhook notifications)\n- websockets\n\n**Storage:**\n- google.cloud.storage (GCS)\n- huggingface_hub (HfApi)\n\n**Infrastructure:**\n- asyncio, threading\n- concurrent.futures\n- nest_asyncio\n- requests\n- joblib, pickle",
+        "width": 440,
+        "height": 480,
+        "color": 5
+      },
+      "id": "dependencies-note",
+      "name": "DEPENDENCIES",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [1240, 960],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## 🏗️ nn.Module CLASS HIERARCHY\n\n**Quantum-Specific:**\n├─ QuantumAgent\n├─ QuantumForecastingAdvisor\n├─ QuantumStateEncodingWrapperModule\n├─ QuantumFeatureNormalizer\n\n**Complex-Valued:**\n├─ ComplexLinear\n├─ ModReLU\n├─ ComplexBatchNorm\n├─ ComplexMultiheadAttention\n├─ ComplexLayerNorm\n\n**Multi-Timeframe:**\n├─ TimeframeEncoder\n├─ MultiTimeframeFusion\n├─ MultiTimeframeSharedLatentEncoder\n├─ MultiTimeframeEntangledComplexAgent\n├─ MultiTimeframeEntangledComplexAgentSystem\n├─ RobustLatentEncoder\n\n**Voting:**\n├─ AttentionVotingNetwork\n├─ AVNFeatureExtractor\n├─ AVNUncertaintyHead\n├─ VotingTransformer\n\n**MARL Mixing:**\n├─ QMIXMixingNetwork\n├─ VDNMixingNetwork\n├─ COMACounterfactualCritic\n├─ DiversityLoss\n\n**Diversity Preservation:**\n├─ GatedEntanglement\n├─ AgentSpecificLatentProjector\n├─ AdaptiveCoordinationModule\n├─ TimeframeStateAugmenter\n\n**Policy Networks:**\n├─ Actor (×2 versions)\n├─ Critic (×2 versions)\n\n**Attention/Temporal:**\n├─ MultiHeadAttention\n├─ CrossTimeframeAttention\n├─ SelfAttention\n├─ ConvPreprocessor\n├─ ResidualBiLSTMBlock\n├─ TemporalCNN\n├─ FeatureEmbedding\n├─ ResidualBlock",
+        "width": 440,
+        "height": 740,
+        "color": 2
+      },
+      "id": "nn-hierarchy-note",
+      "name": "nn.Module HIERARCHY",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [1240, 1500],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## 📨 ABLY/REDIS CHANNEL MAP\n\n**Per-Agent Feature Channels (×8):**\n- `features:{agent_name}` → raw state features\n- `meta:{agent_name}` → meta-features\n\n**Reward Channels:**\n- `rewards` → individual rewards\n- `reward-batches` → batch rewards\n- `rewards:v250` → V2.5 format rewards\n\n**Signal Channels:**\n- `final_signals` → published BUY/SELL\n- `new-final-signal` → event name\n\n**Control Channels:**\n- `confirmation-request` → trade confirm\n- `confirmation-response` → confirm result\n- `shutdown` → system shutdown\n\n**Data Flow:**\n```\nDeriv API → Feature Generator\n→ Ably publish (per agent)\n→ quasar_main4.py subscribes\n→ process_raw_tick()\n→ quantum_predict()\n→ voting_predict()\n→ publish final_signal\n→ Ably → Trading Bot executes\n→ Reward sent back via rewards channel\n→ store_experience()\n→ train_step()\n```",
+        "width": 440,
+        "height": 560,
+        "color": 4
+      },
+      "id": "channel-map-note",
+      "name": "CHANNEL MAP",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [1240, 2300],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## 🎯 SIGNAL GENERATION PIPELINE\n\n```\n1. Raw tick arrives on features:{agent}\n2. process_raw_tick(agent, price_data)\n3. State tensor constructed (58 features)\n4. For EACH of 8 agents:\n   a. quantum_bridge.safe_quantum_predict(state)\n   b. Q-values = [Q_buy, Q_sell]\n   c. action = argmax(Q) with ε-greedy\n5. Collect all Q-values + actions\n6. _fast_voting_predict(q_vals, actions):\n   a. AVN: attention-weighted voting\n   b. Uncertainty quantification\n   c. Safety checks\n   d. Fallback: majority vote\n7. calculate_signal_confidence()\n8. apply_pullback_logic(action, price)\n9. Signal diversity check\n10. _publish_direct(signal_data)\n    → ably_manager.publish(\"final_signals\")\n11. store_experience_for_agent()\n    → matches signal_key for later reward\n12. Discord notification\n```",
+        "width": 440,
+        "height": 480,
+        "color": 1
+      },
+      "id": "signal-pipeline-note",
+      "name": "SIGNAL PIPELINE",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [1240, 2920],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## ⚡ PLASTICITY PRESERVATION (V5.1.0)\n\nImported from `quasar_plasticity_module`:\n\n**PlasticityPreserver:**\n- Feature rank regularization (Lyle 2023)\n- Prevents feature collapse\n\n**AutoEntropyTuner:**\n- Automatic α tuning (Haarnoja SAC 2018)\n- Adjusts entropy coefficient dynamically\n\n**ReDo (Dormant Neuron Recycling):**\n- Sokar et al., ICML 2023\n- Detects dormant neurons (activation < threshold)\n- Recycles: reinitializes with Xavier init\n- Maintains network plasticity\n\n**Addresses:**\n- 47% accuracy plateau\n- 100% SELL collapse\n- Dormant neuron accumulation",
+        "width": 440,
+        "height": 340,
+        "color": 2
+      },
+      "id": "plasticity-note",
+      "name": "PLASTICITY PRESERVATION",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [1740, -200],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## 🎲 EXPLORATION STRATEGY\n\n**ExplorationManager** (L:4090):\n\n**Per-Agent Epsilon:**\n- Base: ε = 0.45 minimum\n- If agent entropy < 0.15 (collapsed):\n  → ε boosted to 0.30 (30% random)\n- If entropy > 0.7 (healthy):\n  → ε = EPSILON_END (normal)\n\n**Temperature Scaling:**\n- Action probabilities: softmax(Q/T)\n- T starts high (exploration)\n- T decays toward 1.0\n\n**Collapse Recovery:**\n- Track consecutive collapses per agent\n- After 10 consecutive:\n  → Soft reset (noise injection)\n  → +0.01 noise to all parameters\n  → Reset epsilon to 0.5\n  → Clear action history\n\n**Signal Diversity (V5.0.0):**\n- Track last 30 signals\n- If 20 consecutive identical → flip\n- Last resort mechanism",
+        "width": 440,
+        "height": 440,
+        "color": 3
+      },
+      "id": "exploration-note",
+      "name": "EXPLORATION STRATEGY",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [1740, 200],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## 📐 ACTOR-CRITIC ARCHITECTURE\n\n**Actor** (L:9688) [nn.Module]:\n```\nInput: state (58)\n→ Linear(58, 256)\n→ ReLU + Dropout(0.1)\n→ Linear(256, 256)\n→ ReLU + Dropout(0.1)\n→ Linear(256, 2)\n→ Softmax\nOutput: π(a|s) = [P(BUY), P(SELL)]\n```\n\n**Critic** (L:9728) [nn.Module]:\n```\nInput: state (58) + action (2)\n→ Linear(60, 256)\n→ ReLU + Dropout(0.1)\n→ Linear(256, 256)\n→ ReLU + Dropout(0.1)\n→ Linear(256, 1)\nOutput: Q(s, a)\n```\n\n**Q-Network (DQN):**\n```\nInput: state (58)\n→ Linear(58, 256), ReLU, Dropout\n→ Linear(256, 256), ReLU, Dropout\n→ Linear(256, 2)\nOutput: [Q_BUY, Q_SELL]\n```\n\n**Target Network:**\nSoft update: τ = 0.003\nθ_target ← τ·θ + (1-τ)·θ_target",
+        "width": 440,
+        "height": 520,
+        "color": 6
+      },
+      "id": "actor-critic-note",
+      "name": "ACTOR-CRITIC ARCHITECTURE",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [1740, 700],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## 🔬 TRAINING LOSS COMPUTATION\n\n**Per-Agent Loss (QuantumSystemTrainer):**\n\n```\nL_total = L_td + L_actor + L_diversity\n\nL_td = Huber(\n  Q(s,a),\n  r + γ · max_a' Q_target(s', a')\n)\n\nL_actor = -Q(s, π(s)) - β·H(π)\nwhere β = entropy_coef (schedule):\n  Steps 0→100: 0.05 → 0.1\n  Steps 100→5000: 0.1 (hold)\n  Steps 5000+: 0.1 → 0.01\n\nL_diversity = w₁·L_entropy\n            + w₂·L_disagreement\n            + w₃·L_qspread\n            + w₄·L_correlation\n\nL_qspread = -log(var(Q) + 1e-6)\n  (V5.0.6 FIX: NOT 1/(var+ε))\n\nGradient clipping: max_norm = 5.0\n```\n\n**Mixing (QMIX):**\n```\nQ_tot = MixingNet(Q₁,...,Q₈; s_global)\nL_mix = Huber(Q_tot, r + γ·Q_tot_target)\n```",
+        "width": 440,
+        "height": 520,
+        "color": 1
+      },
+      "id": "loss-computation-note",
+      "name": "LOSS COMPUTATION",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [1740, 1280],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## 📝 VERSION HISTORY\n\n**V8.7.0** — Signal publishing via ably_manager\n**V8.6.2** — Unified Ably connection management\n**V8.6.1** — Agent multipliers credit assignment\n**V8.6.0** — Diversity preservation module\n**V8.5.10** — Proper checkpoint resume\n**V8.5.9** — Buffer linked + training active\n**V8.5.7** — Qiskit logging silenced\n**V8.5.6** — Forecast bias diagnostics\n**V8.5.5** — Per-agent timeframe states\n**V8.5.3** — Bounded forecasts (Tanh)\n**V8.5.1** — Quantum feature normalizer fix\n**V8.5** — VotingEnsembleTrainer integration\n**V8.3** — Quantum feature normalization\n**V5.1.0** — Plasticity preservation (ReDo)\n**V5.0.6** — MARL anti-collapse mechanisms\n**V5.0.5** — Agent-level diagnostics\n**V5.0.4** — Non-blocking signal publisher\n**V5.0.3** — Non-blocking training executor\n**V5.0.0** — Deadlock prevention\n\n**Author:** ENG Karl Muzunze\n**Location:** Masvingo, Zimbabwe\n**File:** quasar_main4.py\n**Lines:** 34,126\n**Classes:** 87\n**nn.Modules:** 38\n**Enums:** 7\n**Dataclasses:** 12",
+        "width": 440,
+        "height": 560,
+        "color": 7
+      },
+      "id": "version-history-note",
+      "name": "VERSION HISTORY",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [1740, 1860],
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "main-entry": {
+      "main": [
+        [
+          {
+            "node": "QuantumMetaController (L:33648)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "quantum-meta-controller": {
+      "main": [
+        [
+          {
+            "node": "IntegratedSignalSystem (L:23623)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "integrated-signal-system": {
+      "main": [
+        [
+          {
+            "node": "AVN Voting Subsystem (L:839-1959)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Discord Notifications (L:8587-13182)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "QuantumSystemBridge (L:22167)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "quantum-system-bridge": {
+      "main": [
+        [
+          {
+            "node": "QuantumTradingSystem (L:10232)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "QuantumVotingSystem (L:21745)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "QuantumSystemTrainer (L:19610)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "quantum-trading-system": {
+      "main": [
+        [
+          {
+            "node": "QuantumAgent ×8 (L:21399)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "QuantumForecastingAdvisor (L:10872)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Multi-TF Entanglement (L:18525-19610)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "quantum-agent": {
+      "main": [
+        [
+          {
+            "node": "QuantumStateEncoding (L:10651)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "quantum-forecasting": {
+      "main": [
+        [
+          {
+            "node": "Complex-Valued NNs (L:18465-18520)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "quantum-voting": {
+      "main": [
+        [
+          {
+            "node": "VotingEnsembleTrainer (L:7576)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "quantum-trainer": {
+      "main": [
+        [
+          {
+            "node": "Mixing Networks (L:2626-2845)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Anti-Collapse Modules (L:3194-4689)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Experience Buffers (L:2189-4882)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ably-manager": {
+      "main": [
+        [
+          {
+            "node": "CheckpointManager (L:5337)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Monitoring & Health (L:7235-9121)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "K1RL_QU1NT",
+      "id": "1"
+    },
+    {
+      "name": "Quantum Trading",
+      "id": "2"
+    },
+    {
+      "name": "Architecture",
+      "id": "3"
+    },
+    {
+      "name": "MARL",
+      "id": "4"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2026-02-24T12:00:00.000Z",
+  "versionId": "k1rl-qu1nt-v870-architecture"
+}

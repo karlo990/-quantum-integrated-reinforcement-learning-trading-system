@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>K1RL_QU1NT V8.7.0 — Engine Architecture</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #08090d;
+  --bg2: #0d0f15;
+  --bg3: #12151e;
+  --surface: #161a26;
+  --border: #1e2436;
+  --border-hi: #2a3350;
+  --text: #c8cdd8;
+  --text-dim: #6b7394;
+  --text-bright: #e8ecf4;
+  --accent: #6366f1;
+  --accent2: #818cf8;
+  --quantum: #06b6d4;
+  --quantum2: #22d3ee;
+  --green: #10b981;
+  --green2: #34d399;
+  --orange: #f59e0b;
+  --red: #ef4444;
+  --pink: #ec4899;
+  --purple: #a855f7;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+.noise {
+  position: fixed; top:0; left:0; width:100%; height:100%;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 9999;
+}
+
+/* HEADER */
+.header {
+  padding: 40px 48px 24px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(99,102,241,0.06) 0%, transparent 100%);
+}
+.header-top {
+  display: flex; align-items: center; gap: 16px; margin-bottom: 8px;
+}
+.logo {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px; font-weight: 600;
+  color: var(--quantum);
+  background: rgba(6,182,212,0.1);
+  border: 1px solid rgba(6,182,212,0.2);
+  padding: 6px 14px; border-radius: 6px;
+  letter-spacing: 2px;
+}
+.header h1 {
+  font-size: 32px; font-weight: 800;
+  background: linear-gradient(135deg, var(--text-bright), var(--accent2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+}
+.header p {
+  color: var(--text-dim); font-size: 14px; margin-top: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.stats-bar {
+  display: flex; gap: 24px; margin-top: 16px;
+}
+.stat {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--text-dim);
+}
+.stat span { color: var(--green); font-weight: 600; }
+.stat.warn span { color: var(--orange); }
+
+/* NAV */
+.nav {
+  display: flex; gap: 4px; padding: 12px 48px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  overflow-x: auto;
+  flex-wrap: wrap;
+}
+.nav-btn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 500;
+  padding: 8px 16px; border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent; color: var(--text-dim);
+  cursor: pointer; transition: all 0.2s;
+  white-space: nowrap;
+}
+.nav-btn:hover { background: var(--surface); color: var(--text); border-color: var(--border); }
+.nav-btn.active {
+  background: rgba(99,102,241,0.12);
+  color: var(--accent2);
+  border-color: rgba(99,102,241,0.3);
+}
+
+/* CONTENT */
+.content { padding: 32px 48px; max-width: 1600px; margin: 0 auto; }
+
+/* SECTION */
+.section { margin-bottom: 48px; animation: fadeIn 0.4s ease; }
+@keyframes fadeIn { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform: translateY(0); } }
+.section-title {
+  font-size: 18px; font-weight: 700; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 10px;
+}
+.section-title .icon {
+  width: 28px; height: 28px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+}
+.section-subtitle {
+  font-size: 13px; color: var(--text-dim); margin-bottom: 24px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* FLOW DIAGRAM */
+.flow-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+.flow-layer {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  position: relative;
+}
+.flow-layer::before {
+  content: attr(data-layer);
+  position: absolute; top: -10px; left: 20px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; font-weight: 600;
+  color: var(--text-dim);
+  background: var(--bg);
+  padding: 2px 10px; border-radius: 4px;
+  border: 1px solid var(--border);
+  text-transform: uppercase; letter-spacing: 1.5px;
+}
+.flow-layer-title {
+  font-size: 14px; font-weight: 700; margin-bottom: 12px;
+  color: var(--text-bright);
+}
+.flow-nodes {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.flow-node {
+  padding: 8px 14px; border-radius: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 500;
+  border: 1px solid; cursor: pointer;
+  transition: all 0.2s; position: relative;
+}
+.flow-node:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+.flow-node.quantum { background: rgba(6,182,212,0.1); border-color: rgba(6,182,212,0.3); color: var(--quantum2); }
+.flow-node.nn { background: rgba(168,85,247,0.1); border-color: rgba(168,85,247,0.3); color: var(--purple); }
+.flow-node.system { background: rgba(99,102,241,0.1); border-color: rgba(99,102,241,0.3); color: var(--accent2); }
+.flow-node.data { background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3); color: var(--green2); }
+.flow-node.infra { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.3); color: var(--orange); }
+.flow-node.rl { background: rgba(236,72,153,0.1); border-color: rgba(236,72,153,0.3); color: var(--pink); }
+.flow-node.critical { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: var(--red); }
+
+.flow-arrow {
+  display: flex; justify-content: center; padding: 4px 0;
+  color: var(--border-hi); font-size: 18px;
+}
+
+/* DETAIL PANEL */
+.detail-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border-hi);
+  border-radius: 12px;
+  padding: 24px;
+  margin-top: 16px;
+  display: none;
+}
+.detail-panel.active { display: block; animation: fadeIn 0.3s ease; }
+.detail-title {
+  font-size: 16px; font-weight: 700; margin-bottom: 4px;
+  color: var(--text-bright);
+}
+.detail-type {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; color: var(--text-dim); margin-bottom: 12px;
+}
+.detail-desc {
+  font-size: 13px; line-height: 1.7; margin-bottom: 16px;
+}
+.detail-table {
+  width: 100%; border-collapse: collapse;
+}
+.detail-table th {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; font-weight: 600;
+  color: var(--text-dim); text-align: left;
+  padding: 6px 12px; border-bottom: 1px solid var(--border);
+  text-transform: uppercase; letter-spacing: 1px;
+}
+.detail-table td {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; padding: 6px 12px;
+  border-bottom: 1px solid rgba(30,36,54,0.5);
+}
+.detail-table td:first-child { color: var(--accent2); font-weight: 500; }
+.detail-table td:nth-child(2) { color: var(--text-dim); }
+
+/* CLASS CARD GRID */
+.class-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 12px;
+}
+.class-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.class-card:hover { border-color: var(--border-hi); transform: translateY(-1px); }
+.class-card-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+}
+.class-card-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; font-weight: 700;
+  padding: 3px 8px; border-radius: 4px;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+.badge-nn { background: rgba(168,85,247,0.15); color: var(--purple); }
+.badge-quantum { background: rgba(6,182,212,0.15); color: var(--quantum2); }
+.badge-system { background: rgba(99,102,241,0.15); color: var(--accent2); }
+.badge-data { background: rgba(16,185,129,0.15); color: var(--green2); }
+.badge-infra { background: rgba(245,158,11,0.15); color: var(--orange); }
+.badge-rl { background: rgba(236,72,153,0.15); color: var(--pink); }
+.class-card-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px; font-weight: 600; color: var(--text-bright);
+}
+.class-card-line {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--text-dim); margin-left: auto;
+}
+.class-card-desc {
+  font-size: 12px; color: var(--text-dim); line-height: 1.5;
+}
+.class-card-methods {
+  margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px;
+}
+.method-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; padding: 2px 7px; border-radius: 3px;
+  background: rgba(99,102,241,0.08); color: var(--text-dim);
+  border: 1px solid rgba(99,102,241,0.1);
+}
+
+/* CONSTANTS TABLE */
+.const-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px;
+}
+.const-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 14px; background: var(--surface); border-radius: 6px;
+  border: 1px solid var(--border);
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+}
+.const-name { color: var(--quantum2); font-weight: 500; }
+.const-val { color: var(--green2); }
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .header, .nav, .content { padding-left: 20px; padding-right: 20px; }
+  .header h1 { font-size: 22px; }
+  .class-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="noise"></div>
+
+<div class="header">
+  <div class="header-top">
+    <div class="logo">K1RL_QU1NT</div>
+    <div>
+      <h1>Quantum Trading Engine — Architecture Blueprint</h1>
+      <p>quasar_main4.py &nbsp;·&nbsp; 34,126 lines &nbsp;·&nbsp; 87 classes &nbsp;·&nbsp; V8.7.0 &nbsp;·&nbsp; ENG Karl Muzunze</p>
+    </div>
+  </div>
+  <div class="stats-bar">
+    <div class="stat">AGENTS: <span>8 (xs,s,m,l,xl,xxl,5m,10m)</span></div>
+    <div class="stat">STATE_DIM: <span>58</span></div>
+    <div class="stat">QUBITS: <span>6</span></div>
+    <div class="stat">ACTION_DIM: <span>2 (BUY/SELL)</span></div>
+    <div class="stat">BUFFER: <span>100M exp</span></div>
+    <div class="stat warn">FRAMEWORK: <span>PyTorch + TensorFlow + Qiskit</span></div>
+  </div>
+</div>
+
+<div class="nav" id="nav">
+  <button class="nav-btn active" onclick="showSection('overview')">◈ System Overview</button>
+  <button class="nav-btn" onclick="showSection('quantum')">⚛ Quantum Modules</button>
+  <button class="nav-btn" onclick="showSection('nn')">◆ Neural Networks</button>
+  <button class="nav-btn" onclick="showSection('marl')">♦ MARL & Training</button>
+  <button class="nav-btn" onclick="showSection('voting')">▣ Voting Systems</button>
+  <button class="nav-btn" onclick="showSection('data')">▤ Data Pipeline</button>
+  <button class="nav-btn" onclick="showSection('infra')">⬡ Infrastructure</button>
+  <button class="nav-btn" onclick="showSection('constants')">⌘ Constants & Config</button>
+  <button class="nav-btn" onclick="showSection('allclasses')">☰ All 87 Classes</button>
+</div>
+
+<div class="content">
+
+<!-- ==================== OVERVIEW ==================== -->
+<div class="section" id="sec-overview">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(99,102,241,0.15)">◈</div>
+    System Architecture — Data Flow Overview
+  </div>
+  <div class="section-subtitle">End-to-end signal generation pipeline: Market Data → Quantum Processing → Multi-Agent RL → Voting Consensus → Signal Output</div>
+
+  <div class="flow-grid">
+
+    <div class="flow-layer" data-layer="Layer 0 — Entry Point & Orchestration">
+      <div class="flow-layer-title">System Bootstrap & Lifecycle Control</div>
+      <div class="flow-nodes">
+        <div class="flow-node critical" onclick="showDetail('qmc')">QuantumMetaController</div>
+        <div class="flow-node system" onclick="showDetail('main')">main()</div>
+      </div>
+      <p style="font-size:12px;color:var(--text-dim);margin-top:10px">
+        <b>QuantumMetaController</b> is the God-class orchestrator. It manages "voyages" (trading sessions),
+        handles periodic system resets every 60M minutes, and wraps all subsystems in error recovery.
+        <code>main()</code> silences all logging, prints the banner, instantiates the controller, then calls <code>run_forever()</code>.
+      </p>
+    </div>
+
+    <div class="flow-arrow">▼</div>
+
+    <div class="flow-layer" data-layer="Layer 1 — Integrated Signal System (Master Coordinator)">
+      <div class="flow-layer-title">IntegratedSignalSystem — The Heart of the Engine (Line 23623)</div>
+      <div class="flow-nodes">
+        <div class="flow-node system">IntegratedSignalSystem</div>
+        <div class="flow-node data">process_raw_tick()</div>
+        <div class="flow-node system">_fast_voting_predict()</div>
+        <div class="flow-node infra">_publish_direct()</div>
+        <div class="flow-node data">store_experience_for_agent()</div>
+        <div class="flow-node system">train_supervised()</div>
+        <div class="flow-node infra">save_state() / load_state()</div>
+      </div>
+      <p style="font-size:12px;color:var(--text-dim);margin-top:10px">
+        Central coordinator connecting ALL subsystems: ingests tick data from Ably/Redis,
+        routes to quantum agents, collects Q-values, runs voting, publishes signals,
+        stores experiences, triggers training. Manages Discord notifications, meta-model,
+        progressive gating, and AVN system.
+      </p>
+    </div>
+
+    <div class="flow-arrow">▼</div>
+
+    <div class="flow-layer" data-layer="Layer 2 — Quantum System Bridge (Abstraction Layer)">
+      <div class="flow-layer-title">QuantumSystemBridge — Connecting Classical & Quantum Worlds (Line 22167)</div>
+      <div class="flow-nodes">
+        <div class="flow-node quantum">QuantumSystemBridge</div>
+        <div class="flow-node quantum">safe_quantum_predict()</div>
+        <div class="flow-node quantum">predict_all_agents_with_metadata()</div>
+        <div class="flow-node data">update_agent_state()</div>
+        <div class="flow-node rl">store_experience_for_agent()</div>
+        <div class="flow-node rl">train_all_agents()</div>
+      </div>
+      <p style="font-size:12px;color:var(--text-dim);margin-top:10px">
+        Abstraction layer that wraps <b>QuantumTradingSystem</b>, <b>QuantumVotingSystem</b>,
+        <b>QuantumReplayBuffer</b>, and <b>QuantumSystemTrainer</b>. Manages state caches per agent,
+        routes predictions through quantum-enhanced path, and handles experience storage with
+        proper multi-agent credit assignment.
+      </p>
+    </div>
+
+    <div class="flow-arrow">▼</div>
+
+    <div class="flow-layer" data-layer="Layer 3 — Quantum Core (Agents + Forecasting + Entanglement)">
+      <div class="flow-layer-title">Quantum Neural Architecture — Multi-Agent Entangled Complex Networks</div>
+      <div class="flow-nodes">
+        <div class="flow-node quantum">QuantumTradingSystem</div>
+        <div class="flow-node nn">QuantumAgent (×8)</div>
+        <div class="flow-node nn">Actor / Critic</div>
+        <div class="flow-node quantum">QuantumForecastingAdvisor</div>
+        <div class="flow-node quantum">QuantumStateEncodingWrapper</div>
+        <div class="flow-node quantum">QuantumFeatureNormalizer</div>
+        <div class="flow-node nn">MultiTimeframeEntangledComplexAgentSystem</div>
+        <div class="flow-node nn">MultiTimeframeEntangledComplexAgent</div>
+        <div class="flow-node nn">MultiTimeframeSharedLatentEncoder</div>
+        <div class="flow-node nn">MultiTimeframeFusion</div>
+        <div class="flow-node nn">RobustLatentEncoder</div>
+      </div>
+    </div>
+
+    <div class="flow-arrow">▼</div>
+
+    <div class="flow-layer" data-layer="Layer 4 — Voting & Consensus">
+      <div class="flow-layer-title">Multi-Agent Voting Systems — From Q-Values to Final Signal</div>
+      <div class="flow-nodes">
+        <div class="flow-node rl">QuantumVotingSystem</div>
+        <div class="flow-node nn">AttentionVotingNetwork (AVN)</div>
+        <div class="flow-node nn">AVNPredictor</div>
+        <div class="flow-node nn">AVNTrainer</div>
+        <div class="flow-node nn">VotingTransformer (Legacy)</div>
+        <div class="flow-node rl">VotingEnsembleTrainer</div>
+        <div class="flow-node system">ExplorationManager</div>
+      </div>
+    </div>
+
+    <div class="flow-arrow">▼</div>
+
+    <div class="flow-layer" data-layer="Layer 5 — Training & Experience Management">
+      <div class="flow-layer-title">MARL Training Pipeline — CTDE with Anti-Collapse Mechanisms</div>
+      <div class="flow-nodes">
+        <div class="flow-node rl">QuantumSystemTrainer</div>
+        <div class="flow-node data">MultiAgentExperienceReplay</div>
+        <div class="flow-node data">QuantumReplayBuffer</div>
+        <div class="flow-node data">PrioritizedReplayBuffer</div>
+        <div class="flow-node rl">AgentLevelDiagnostics</div>
+        <div class="flow-node rl">DiversityLoss</div>
+        <div class="flow-node nn">QMIXMixingNetwork</div>
+        <div class="flow-node nn">VDNMixingNetwork</div>
+        <div class="flow-node nn">COMACounterfactualCritic</div>
+        <div class="flow-node system">AsyncTrainingExecutor</div>
+      </div>
+    </div>
+
+    <div class="flow-arrow">▼</div>
+
+    <div class="flow-layer" data-layer="Layer 6 — Infrastructure & Communication">
+      <div class="flow-layer-title">Real-Time Messaging, Checkpoints, Monitoring</div>
+      <div class="flow-nodes">
+        <div class="flow-node infra">DedicatedAblyConnectionManager</div>
+        <div class="flow-node infra">DedicatedRedisConnectionManager</div>
+        <div class="flow-node infra">MultiInstrumentCheckpointManager</div>
+        <div class="flow-node infra">DiscordWebhookSender</div>
+        <div class="flow-node infra">QuantumDiscordLogger</div>
+        <div class="flow-node infra">AsyncSignalPublisher</div>
+        <div class="flow-node infra">AutosaveManager</div>
+        <div class="flow-node infra">HealthMonitor</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ==================== QUANTUM ==================== -->
+<div class="section" id="sec-quantum" style="display:none">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(6,182,212,0.15)">⚛</div>
+    Quantum Computing Modules
+  </div>
+  <div class="section-subtitle">Qiskit-powered quantum circuits for state encoding, forecasting, and multi-timeframe entanglement</div>
+
+  <div class="class-grid">
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-quantum">QUANTUM</span>
+        <span class="class-card-name">QuantumForecastingAdvisor</span>
+        <span class="class-card-line">L:10872</span>
+      </div>
+      <div class="class-card-desc">
+        Core quantum forecasting module. Uses Qiskit quantum circuits (6 qubits → 2⁶=64 dimensional Hilbert space)
+        to forecast future price movements over a 30-step horizon. Produces <b>confidence-weighted forecast vectors</b>
+        that temper Q-values, making agents forward-looking.
+      </div>
+      <div class="class-card-methods">
+        <span class="method-tag">state_processor (MLP)</span>
+        <span class="method-tag">fusion_network</span>
+        <span class="method-tag">forecast_head (Tanh bounded)</span>
+        <span class="method-tag">confidence_head (Sigmoid)</span>
+        <span class="method-tag">quantum_feature_normalizer</span>
+        <span class="method-tag">input_state_normalizer</span>
+      </div>
+    </div>
+
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-quantum">QUANTUM</span>
+        <span class="class-card-name">QuantumStateEncodingWrapperModule</span>
+        <span class="class-card-line">L:10651</span>
+      </div>
+      <div class="class-card-desc">
+        Wraps classical state vectors into quantum state representations using parametric quantum circuits.
+        Encodes market state into qubit rotations (RX, RY, RZ gates), applies entangling CNOT layers,
+        and measures the resulting quantum state for downstream processing.
+      </div>
+      <div class="class-card-methods">
+        <span class="method-tag">quantum_circuit</span>
+        <span class="method-tag">encode_state()</span>
+        <span class="method-tag">measure()</span>
+      </div>
+    </div>
+
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-quantum">QUANTUM</span>
+        <span class="class-card-name">QuantumFeatureNormalizer</span>
+        <span class="class-card-line">L:10842</span>
+      </div>
+      <div class="class-card-desc">
+        Prevents quantum feature explosion in downstream networks. Uses learnable scale/bias parameters
+        with layer normalization and value clamping (max_norm=5.0). Added in V8.3 to fix forecast instability.
+      </div>
+      <div class="class-card-methods">
+        <span class="method-tag">scale (Parameter)</span>
+        <span class="method-tag">bias (Parameter)</span>
+        <span class="method-tag">LayerNorm</span>
+        <span class="method-tag">clamp ±5.0</span>
+      </div>
+    </div>
+
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-quantum">QUANTUM</span>
+        <span class="class-card-name">QuantumVotingSystem</span>
+        <span class="class-card-line">L:21745</span>
+      </div>
+      <div class="class-card-desc">
+        Aggregates Q-values from all 8 agents into a final trading action using quantum-inspired voting.
+        Each agent "votes" BUY/SELL based on their Q-value argmax. The system uses confidence-weighted
+        majority voting with deadlock detection, diversity injection, and tie-breaking mechanisms.
+      </div>
+      <div class="class-card-methods">
+        <span class="method-tag">predict()</span>
+        <span class="method-tag">_majority_vote_fallback()</span>
+        <span class="method-tag">predict_safe()</span>
+        <span class="method-tag">collect_training_sample()</span>
+        <span class="method-tag">print_diagnostic_stats()</span>
+      </div>
+    </div>
+
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-quantum">QUANTUM</span>
+        <span class="class-card-name">QuantumAgent</span>
+        <span class="class-card-line">L:21399</span>
+      </div>
+      <div class="class-card-desc">
+        Individual quantum-enhanced trading agent. Each of the 8 agents (xs, s, m, l, xl, xxl, 5m, 10m)
+        is an instance of this class. Contains Actor-Critic networks, Q-value model with target network,
+        feature history buffer, epsilon-greedy exploration, and Q-value rebalancing.
+      </div>
+      <div class="class-card-methods">
+        <span class="method-tag">actor (Actor)</span>
+        <span class="method-tag">critic (Critic)</span>
+        <span class="method-tag">model (DQN)</span>
+        <span class="method-tag">target_model</span>
+        <span class="method-tag">check_and_rebalance_q_values()</span>
+        <span class="method-tag">get_discrete_action()</span>
+        <span class="method-tag">train_step()</span>
+      </div>
+    </div>
+
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-quantum">QUANTUM</span>
+        <span class="class-card-name">QuantumTradingSystem</span>
+        <span class="class-card-line">L:10232</span>
+      </div>
+      <div class="class-card-desc">
+        Top-level container for all quantum agents. Initializes 8 QuantumAgent instances, manages the shared
+        latent encoder, and provides predict() and quantum_enhanced_predict() methods. The quantum_advisor
+        (QuantumForecastingAdvisor) is attached during integration.
+      </div>
+      <div class="class-card-methods">
+        <span class="method-tag">agents{}</span>
+        <span class="method-tag">latent_encoder</span>
+        <span class="method-tag">quantum_advisor</span>
+        <span class="method-tag">predict()</span>
+        <span class="method-tag">quantum_enhanced_predict()</span>
+      </div>
+    </div>
+
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-quantum">QUANTUM</span>
+        <span class="class-card-name">QuantumSystemBridge</span>
+        <span class="class-card-line">L:22167</span>
+      </div>
+      <div class="class-card-desc">
+        Critical abstraction bridging the QuantumTradingSystem, QuantumVotingSystem, QuantumReplayBuffer,
+        and QuantumSystemTrainer. Manages per-agent state caches, routes predictions through quantum path,
+        handles experience storage with credit assignment, and exposes unified API.
+      </div>
+      <div class="class-card-methods">
+        <span class="method-tag">quantum_system</span>
+        <span class="method-tag">voting_system</span>
+        <span class="method-tag">replay_buffer</span>
+        <span class="method-tag">trainer</span>
+        <span class="method-tag">safe_quantum_predict()</span>
+        <span class="method-tag">predict_all_agents_with_metadata()</span>
+        <span class="method-tag">store_experience_for_agent()</span>
+      </div>
+    </div>
+
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-quantum">QUANTUM</span>
+        <span class="class-card-name">QuantumReplayBuffer</span>
+        <span class="class-card-line">L:21339</span>
+      </div>
+      <div class="class-card-desc">
+        Specialized experience buffer for quantum agents. Stores state sequences (seq_len=32),
+        actions, rewards, next states, and done flags with signal keys for reward matching.
+        Max capacity: 5M experiences.
+      </div>
+      <div class="class-card-methods">
+        <span class="method-tag">add_experience()</span>
+        <span class="method-tag">sample()</span>
+        <span class="method-tag">max_size=5M</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== NEURAL NETWORKS ==================== -->
+<div class="section" id="sec-nn" style="display:none">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(168,85,247,0.15)">◆</div>
+    Neural Network Modules (nn.Module)
+  </div>
+  <div class="section-subtitle">Complex-valued networks, attention mechanisms, temporal encoders, and diversity preservation modules</div>
+
+  <div class="class-grid">
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">ComplexLinear</span>
+        <span class="class-card-line">L:18465</span>
+      </div>
+      <div class="class-card-desc">Complex-valued linear layer implementing W_real, W_imag matrix multiplication for quantum-inspired representation learning.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">ModReLU</span>
+        <span class="class-card-line">L:18486</span>
+      </div>
+      <div class="class-card-desc">Modified ReLU for complex numbers. Applies ReLU to magnitude while preserving phase: new_mag = ReLU(|z| + b) · z/|z|.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">ComplexBatchNorm</span>
+        <span class="class-card-line">L:18498</span>
+      </div>
+      <div class="class-card-desc">Batch normalization for complex-valued tensors — applies separate BN to real and imaginary parts.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">ComplexMultiheadAttention</span>
+        <span class="class-card-line">L:18508</span>
+      </div>
+      <div class="class-card-desc">Dual multi-head attention operating separately on real and imaginary components of complex-valued sequences.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">TimeframeEncoder</span>
+        <span class="class-card-line">L:18525</span>
+      </div>
+      <div class="class-card-desc">Encodes single timeframe state via MLP with LayerNorm: Linear→LN→ReLU→Dropout→Linear→LN→ReLU.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">MultiTimeframeFusion</span>
+        <span class="class-card-line">L:18542</span>
+      </div>
+      <div class="class-card-desc">Fuses 8 timeframe representations using temporal self-attention with learnable timeframe weights, then projects to latent space.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">MultiTimeframeSharedLatentEncoder</span>
+        <span class="class-card-line">L:18619</span>
+      </div>
+      <div class="class-card-desc">Shared latent encoder for quantum entanglement across agents. Encodes combined Q-values from all agents/timeframes into z_shared.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">MultiTimeframeEntangledComplexAgent</span>
+        <span class="class-card-line">L:18708</span>
+      </div>
+      <div class="class-card-desc">Individual entangled agent using complex-valued networks. Receives per-timeframe state + z_shared latent and produces Q-values.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">MultiTimeframeEntangledComplexAgentSystem</span>
+        <span class="class-card-line">L:19068</span>
+      </div>
+      <div class="class-card-desc">Full multi-agent system: 8 entangled complex agents + shared latent encoder + multi-timeframe fusion + diversity modules. The core MARL architecture.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">RobustLatentEncoder</span>
+        <span class="class-card-line">L:18816</span>
+      </div>
+      <div class="class-card-desc">Robust shared latent encoder with gradient clipping, spectral normalization, and residual connections. Prevents z_shared collapse.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">GatedEntanglement</span>
+        <span class="class-card-line">L:4325</span>
+      </div>
+      <div class="class-card-desc">Learnable gate controlling local vs shared signal balance. Caps z_shared influence at 30% to prevent shared signal dominance.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">AgentSpecificLatentProjector</span>
+        <span class="class-card-line">L:3194</span>
+      </div>
+      <div class="class-card-desc">Projects shared z_shared into agent-specific representations via per-agent projection heads. Prevents z_shared dominance (V8.6.0).</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">AdaptiveCoordinationModule</span>
+        <span class="class-card-line">L:4421</span>
+      </div>
+      <div class="class-card-desc">Confidence-weighted blending between local agent actions and shared consensus. Higher confidence → more local autonomy.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">TimeframeStateAugmenter</span>
+        <span class="class-card-line">L:4506</span>
+      </div>
+      <div class="class-card-desc">Prevents state staleness by augmenting timeframe states with learned temporal embeddings and noise injection.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">Actor</span>
+        <span class="class-card-line">L:9688 / L:16139</span>
+      </div>
+      <div class="class-card-desc">Policy network (Actor) producing action probabilities via softmax. Two definitions exist: one for quantum agents (DQN-style) and one for TD3 continuous.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">Critic</span>
+        <span class="class-card-line">L:9728 / L:16196</span>
+      </div>
+      <div class="class-card-desc">Value network (Critic) estimating Q(s,a). Two definitions: one for quantum agents and one for TD3 with twin critics.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">MultiHeadAttention</span>
+        <span class="class-card-line">L:9504</span>
+      </div>
+      <div class="class-card-desc">Standard multi-head attention (d_model, 6 heads, dropout=0.45) for cross-timeframe information exchange.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">CrossTimeframeAttention</span>
+        <span class="class-card-line">L:9558</span>
+      </div>
+      <div class="class-card-desc">Specialized attention across 8 timeframes with timeframe embeddings. Enables information flow between different temporal scales.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">AttentionVotingNetwork (AVN)</span>
+        <span class="class-card-line">L:1067</span>
+      </div>
+      <div class="class-card-desc">Learned multi-head self-attention for agent weighting in voting. Features uncertainty quantification (epistemic + aleatoric), agent performance tracking, and safety checks.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">AVNFeatureExtractor</span>
+        <span class="class-card-line">L:952</span>
+      </div>
+      <div class="class-card-desc">Extracts features from Q-values, entropies, and agent metrics for the AVN. Produces d_model=128 dimensional representations.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">AVNUncertaintyHead</span>
+        <span class="class-card-line">L:1043</span>
+      </div>
+      <div class="class-card-desc">Produces epistemic and aleatoric uncertainty estimates via MC dropout sampling (5 forward passes).</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">ConvPreprocessor</span>
+        <span class="class-card-line">L:15784</span>
+      </div>
+      <div class="class-card-desc">1D CNN preprocessor for temporal feature extraction before attention layers.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">ResidualBiLSTMBlock</span>
+        <span class="class-card-line">L:15983</span>
+      </div>
+      <div class="class-card-desc">Bidirectional LSTM with residual connections for sequential feature processing.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">TemporalCNN</span>
+        <span class="class-card-line">L:16076</span>
+      </div>
+      <div class="class-card-desc">Temporal convolutional network with dilated causal convolutions for multi-scale feature extraction.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">QMIXMixingNetwork</span>
+        <span class="class-card-line">L:2626</span>
+      </div>
+      <div class="class-card-desc">QMIX value decomposition (Rashid et al. 2018). Monotonic mixing of individual agent Q-values into Q_tot using hypernetworks conditioned on global state.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">VDNMixingNetwork</span>
+        <span class="class-card-line">L:2686</span>
+      </div>
+      <div class="class-card-desc">Value Decomposition Network (Sunehag et al. 2018). Simple additive decomposition: Q_tot = Σ Q_i.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">COMACounterfactualCritic</span>
+        <span class="class-card-line">L:2700</span>
+      </div>
+      <div class="class-card-desc">COMA counterfactual baseline (Foerster et al. 2018). Computes agent advantages as A_i = Q(s,a) - Σ_a' π_i(a'|o) · Q(s, (a_{-i}, a')).</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">NN</span>
+        <span class="class-card-name">DiversityLoss</span>
+        <span class="class-card-line">L:3273</span>
+      </div>
+      <div class="class-card-desc">Multi-component loss for MARL diversity: action entropy loss, disagreement loss, Q-spread loss (-log(var)), correlation penalty, and range penalty.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MARL & TRAINING ==================== -->
+<div class="section" id="sec-marl" style="display:none">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(236,72,153,0.15)">♦</div>
+    MARL Training & Anti-Collapse Systems
+  </div>
+  <div class="section-subtitle">Centralized Training, Decentralized Execution (CTDE) with plasticity preservation and collapse recovery</div>
+
+  <div class="class-grid">
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-rl">RL</span>
+        <span class="class-card-name">QuantumSystemTrainer</span>
+        <span class="class-card-line">L:19610</span>
+      </div>
+      <div class="class-card-desc">
+        Main training loop. Computes per-agent actor-critic losses with entropy regularization,
+        Q-spread diversity loss, and gradient voting. Implements collapse detection and soft reset recovery.
+        Prints comprehensive per-agent metrics (entropy, Q-spread, BUY%, status flags).
+      </div>
+      <div class="class-card-methods">
+        <span class="method-tag">train_step()</span>
+        <span class="method-tag">_compute_losses()</span>
+        <span class="method-tag">_check_and_recover_collapsed_agents()</span>
+        <span class="method-tag">_soft_reset_agent()</span>
+        <span class="method-tag">_get_entropy_coef()</span>
+        <span class="method-tag">_print_training_metrics()</span>
+      </div>
+    </div>
+
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-rl">RL</span>
+        <span class="class-card-name">AgentLevelDiagnostics</span>
+        <span class="class-card-line">L:3518</span>
+      </div>
+      <div class="class-card-desc">
+        MARL observability system. Detects policy collapse (entropy &lt; 0.15 bits),
+        over-coordination (&gt;90% agreement), Q-value saturation (|Q| &gt; 5.0),
+        and gradient suppression. Provides per-agent status indicators: ✅OK, 🔴COLL, 🟡LOW-H, 🟠SAT.
+      </div>
+    </div>
+
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-rl">RL</span>
+        <span class="class-card-name">ExplorationManager</span>
+        <span class="class-card-line">L:4090</span>
+      </div>
+      <div class="class-card-desc">
+        Temperature-scaled softmax action selection with per-agent epsilon.
+        Collapsed agents get boosted exploration (30% random). Automatic temperature annealing
+        and collapse recovery via noise injection.
+      </div>
+    </div>
+
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-rl">RL</span>
+        <span class="class-card-name">DiversityMetricsTracker</span>
+        <span class="class-card-line">L:4570</span>
+      </div>
+      <div class="class-card-desc">Tracks action diversity, Q-value spread, entropy, and coordination metrics over a rolling window of 1000 steps.</div>
+    </div>
+
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-rl">RL</span>
+        <span class="class-card-name">VotingEnsembleTrainer</span>
+        <span class="class-card-line">L:7576</span>
+      </div>
+      <div class="class-card-desc">
+        Gradient voting during training. Multiple training strategies propose gradients,
+        then vote on optimal update direction. Uses weighted gradient averaging with
+        strategy performance tracking.
+      </div>
+    </div>
+
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-rl">RL</span>
+        <span class="class-card-name">TD3Agent</span>
+        <span class="class-card-line">L:16298</span>
+      </div>
+      <div class="class-card-desc">Twin Delayed DDPG agent for continuous action spaces. Uses twin critics, delayed policy updates, and target policy smoothing.</div>
+    </div>
+
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-rl">RL</span>
+        <span class="class-card-name">TimeframeAgent</span>
+        <span class="class-card-line">L:16662</span>
+      </div>
+      <div class="class-card-desc">Legacy per-timeframe agent with CandleBuilder, DynamicThreshold, and reward processing. Wraps TD3Agent with market-specific logic.</div>
+    </div>
+
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-rl">RL</span>
+        <span class="class-card-name">RewardBatchProcessor</span>
+        <span class="class-card-line">L:17453</span>
+      </div>
+      <div class="class-card-desc">Processes incoming reward messages, matches them to signal_keys, computes per-agent credit assignment multipliers, and distributes rewards to experience buffers.</div>
+    </div>
+
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-rl">RL</span>
+        <span class="class-card-name">AsyncTrainingExecutor</span>
+        <span class="class-card-line">L:4689</span>
+      </div>
+      <div class="class-card-desc">Runs training in a background ThreadPoolExecutor so the main event loop continues processing Ably messages. Prevents stale data during 20-60s training cycles.</div>
+    </div>
+
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-rl">RL</span>
+        <span class="class-card-name">MetaModelTrainer</span>
+        <span class="class-card-line">L:15338</span>
+      </div>
+      <div class="class-card-desc">Trains the TensorFlow meta-model (Transformer-based) for signal confirmation. Uses binary crossentropy with label smoothing.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== VOTING ==================== -->
+<div class="section" id="sec-voting" style="display:none">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(236,72,153,0.15)">▣</div>
+    Voting & Consensus Systems
+  </div>
+  <div class="section-subtitle">Dual voting architecture: Action-level voting for trading decisions + Gradient-level voting for training optimization</div>
+
+  <div class="flow-grid">
+    <div class="flow-layer" data-layer="Action-Level Voting Pipeline">
+      <div class="flow-nodes">
+        <div class="flow-node quantum">8× QuantumAgent Q-values</div>
+        <div class="flow-node nn" style="margin-left:16px">→ AVN (AttentionVotingNetwork)</div>
+        <div class="flow-node rl" style="margin-left:16px">→ QuantumVotingSystem</div>
+        <div class="flow-node system" style="margin-left:16px">→ Final BUY/SELL Signal</div>
+      </div>
+      <p style="font-size:12px;color:var(--text-dim);margin-top:12px">
+        <b>Stage 1:</b> Each of 8 agents produces Q-values [Q_buy, Q_sell] from their timeframe-specific state.<br>
+        <b>Stage 2:</b> AVN uses multi-head self-attention to learn agent reliability weights + uncertainty quantification.<br>
+        <b>Stage 3:</b> QuantumVotingSystem uses confidence-weighted majority voting with deadlock detection.<br>
+        <b>Stage 4:</b> Final signal published via Ably/Redis with pullback logic and diversity enforcement.
+      </p>
+    </div>
+
+    <div class="flow-layer" data-layer="Gradient-Level Voting Pipeline">
+      <div class="flow-nodes">
+        <div class="flow-node rl">Strategy 1: Standard TD</div>
+        <div class="flow-node rl">Strategy 2: Conservative</div>
+        <div class="flow-node rl">Strategy 3: Aggressive</div>
+        <div class="flow-node nn" style="margin-left:16px">→ VotingEnsembleTrainer</div>
+        <div class="flow-node system" style="margin-left:16px">→ Weighted Gradient Average</div>
+      </div>
+      <p style="font-size:12px;color:var(--text-dim);margin-top:12px">
+        Multiple training strategies compute separate gradients, then <b>vote</b> on the optimal
+        update direction. Gradient similarity is measured, and a weighted average is applied.
+        Strategy weights are updated based on loss reduction.
+      </p>
+    </div>
+  </div>
+
+  <div class="class-grid" style="margin-top:24px">
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">AVN</span>
+        <span class="class-card-name">AVNConfig</span>
+        <span class="class-card-line">L:839</span>
+      </div>
+      <div class="class-card-desc">Configuration: d_model=128, num_heads=8, num_layers=3, dropout=0.1, train_every=2, batch_size=32, temperature=1.0, MC samples=5.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">AVN</span>
+        <span class="class-card-name">AVNPredictor</span>
+        <span class="class-card-line">L:1179</span>
+      </div>
+      <div class="class-card-desc">Inference wrapper for AVN. Handles input preparation, collapse detection, safety checks, and fallback to majority vote.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">AVN</span>
+        <span class="class-card-name">AVNTrainer</span>
+        <span class="class-card-line">L:1323</span>
+      </div>
+      <div class="class-card-desc">Online training for AVN using reward callbacks. Stores experiences, matches rewards to signal_keys, trains with batch_id tracking. V8.9 aggressive mode: trains every 2 completions.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-nn">LEGACY</span>
+        <span class="class-card-name">VotingTransformer</span>
+        <span class="class-card-line">L:15842</span>
+      </div>
+      <div class="class-card-desc">Legacy Transformer-based voting model. 6 features per agent × 8 agents. Being replaced by AttentionVotingNetwork (AVN).</div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== DATA PIPELINE ==================== -->
+<div class="section" id="sec-data" style="display:none">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(16,185,129,0.15)">▤</div>
+    Data Pipeline & Experience Management
+  </div>
+  <div class="section-subtitle">From raw market ticks to training batches — ingestion tiers, feature engineering, and replay buffers</div>
+
+  <div class="class-grid">
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-data">DATA</span>
+        <span class="class-card-name">EnhancedIngestionTier</span>
+        <span class="class-card-line">L:14177</span>
+      </div>
+      <div class="class-card-desc">First stage: ingests raw tick data from Ably/Redis channels, validates data quality, and routes to processing tier.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-data">DATA</span>
+        <span class="class-card-name">EnhancedGPUProcessingTier</span>
+        <span class="class-card-line">L:14428</span>
+      </div>
+      <div class="class-card-desc">Second stage: GPU-accelerated feature computation, state tensor construction, and quantum encoding.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-data">DATA</span>
+        <span class="class-card-name">AnalyticsTier</span>
+        <span class="class-card-line">L:14771</span>
+      </div>
+      <div class="class-card-desc">Third stage: signal analytics, performance tracking, and reporting.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-data">DATA</span>
+        <span class="class-card-name">TradingSystemIntegrationManager</span>
+        <span class="class-card-line">L:14945</span>
+      </div>
+      <div class="class-card-desc">Coordinates the 3-tier pipeline: Ingestion → GPU Processing → Analytics, managing data flow between stages.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-data">DATA</span>
+        <span class="class-card-name">MultiAgentExperienceReplay</span>
+        <span class="class-card-line">L:2313</span>
+      </div>
+      <div class="class-card-desc">CTDE-aware replay buffer with per-agent sampling, priority updates, and joint batch sampling for QMIX/VDN training.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-data">DATA</span>
+        <span class="class-card-name">PrioritizedReplayBuffer</span>
+        <span class="class-card-line">L:9624</span>
+      </div>
+      <div class="class-card-desc">Prioritized experience replay (Schaul et al. 2015) with importance sampling weights. α=0.6, β=0.4→1.0.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-data">DATA</span>
+        <span class="class-card-name">ConcurrentStateCollector</span>
+        <span class="class-card-line">L:2555</span>
+      </div>
+      <div class="class-card-desc">Thread-safe state collector preventing staleness. Timestamps each update and reports freshness per agent/timeframe.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-data">DATA</span>
+        <span class="class-card-name">QuantumExperienceCollector</span>
+        <span class="class-card-line">L:15175</span>
+      </div>
+      <div class="class-card-desc">Collects experiences specifically for quantum agents, handling state sequence construction and signal key tracking.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-data">DATA</span>
+        <span class="class-card-name">CandleBuilder</span>
+        <span class="class-card-line">L:17231</span>
+      </div>
+      <div class="class-card-desc">Constructs OHLCV candles from raw tick data for each timeframe.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-data">DATA</span>
+        <span class="class-card-name">DynamicThreshold</span>
+        <span class="class-card-line">L:17275</span>
+      </div>
+      <div class="class-card-desc">Adaptive signal thresholds using kurtosis and skewness from scipy.stats. Adjusts confidence requirements based on market regime.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== INFRASTRUCTURE ==================== -->
+<div class="section" id="sec-infra" style="display:none">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(245,158,11,0.15)">⬡</div>
+    Infrastructure & Communications
+  </div>
+  <div class="section-subtitle">Real-time messaging, checkpoint management, monitoring, and notification systems</div>
+
+  <div class="class-grid">
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-infra">INFRA</span>
+        <span class="class-card-name">DedicatedAblyConnectionManager</span>
+        <span class="class-card-line">L:30974</span>
+      </div>
+      <div class="class-card-desc">Dedicated thread for Ably WebSocket connections. Guarantees heartbeat processing &lt;25s (RTN spec). Manages subscriptions, publishing, reconnection, and command queue.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-infra">INFRA</span>
+        <span class="class-card-name">DedicatedRedisConnectionManager</span>
+        <span class="class-card-line">L:import</span>
+      </div>
+      <div class="class-card-desc">V9.0 Redis replacement for Ably. Imported from redis_connection_manager module. Provides pub/sub messaging as Ably alternative.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-infra">INFRA</span>
+        <span class="class-card-name">MultiInstrumentCheckpointManager</span>
+        <span class="class-card-line">L:5337</span>
+      </div>
+      <div class="class-card-desc">
+        Comprehensive checkpoint system. Manages multi-instrument (Volatility 75, Range Break, etc.)
+        checkpoints with voyage numbering, Google Cloud Storage upload/download, HuggingFace Hub integration,
+        master/instrument/voyage index management, and component-level save/load with fallback recovery.
+      </div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-infra">INFRA</span>
+        <span class="class-card-name">DiscordWebhookSender</span>
+        <span class="class-card-line">L:8640</span>
+      </div>
+      <div class="class-card-desc">Rate-limited Discord webhook sender with priority queue, worker thread, and configurable rate limiting (1.5s/message, 20/s burst).</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-infra">INFRA</span>
+        <span class="class-card-name">QuantumDiscordLogger</span>
+        <span class="class-card-line">L:13183</span>
+      </div>
+      <div class="class-card-desc">Discord-based logging for quantum system events. Sends training summaries, signal changes, reward updates, and system health embeds.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-infra">INFRA</span>
+        <span class="class-card-name">AsyncSignalPublisher</span>
+        <span class="class-card-line">L:4882</span>
+      </div>
+      <div class="class-card-desc">Non-blocking signal publisher using ThreadPoolExecutor. Prevents Ably timeouts from blocking the event loop. 10s timeout, 2 retries.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-infra">INFRA</span>
+        <span class="class-card-name">HealthMonitor</span>
+        <span class="class-card-line">L:7471</span>
+      </div>
+      <div class="class-card-desc">Component-level health tracking with error counts, success rates, and status reporting (healthy/degraded/critical).</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-infra">INFRA</span>
+        <span class="class-card-name">RobustConfig</span>
+        <span class="class-card-line">L:7235</span>
+      </div>
+      <div class="class-card-desc">Retry decorators with exponential backoff for network operations.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-infra">INFRA</span>
+        <span class="class-card-name">AblyConnectionStabilizer</span>
+        <span class="class-card-line">L:9121</span>
+      </div>
+      <div class="class-card-desc">Connection watchdog for Ably WebSocket. Monitors connection state and triggers reconnection when needed.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-infra">INFRA</span>
+        <span class="class-card-name">AutosaveManager</span>
+        <span class="class-card-line">L:14061</span>
+      </div>
+      <div class="class-card-desc">Periodic autosave of system state, model weights, and training progress.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-infra">INFRA</span>
+        <span class="class-card-name">SafeTaskManager</span>
+        <span class="class-card-line">L:9066</span>
+      </div>
+      <div class="class-card-desc">Manages asyncio tasks safely. Tracks task lifecycle, handles cancellation, and prevents task leaks.</div>
+    </div>
+    <div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge badge-infra">INFRA</span>
+        <span class="class-card-name">Instrument (Enum)</span>
+        <span class="class-card-line">L:5120</span>
+      </div>
+      <div class="class-card-desc">Enum of tradeable instruments: Volatility_75, Volatility_10, Range_Break_100, Range_Break_200, Crash_1000, Boom_1000, etc.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CONSTANTS ==================== -->
+<div class="section" id="sec-constants" style="display:none">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(6,182,212,0.15)">⌘</div>
+    Global Constants & Hyperparameters
+  </div>
+  <div class="section-subtitle">Key configuration values governing the quantum trading engine</div>
+
+  <div class="const-grid">
+    <div class="const-item"><span class="const-name">TIMEFRAMES</span><span class="const-val">['xs','s','m','l','xl','xxl','5m','10m']</span></div>
+    <div class="const-item"><span class="const-name">DEFAULT_STATE_DIM</span><span class="const-val">58</span></div>
+    <div class="const-item"><span class="const-name">DEFAULT_ACTION_DIM</span><span class="const-val">2 (BUY / SELL)</span></div>
+    <div class="const-item"><span class="const-name">DEFAULT_HIDDEN_DIM</span><span class="const-val">256</span></div>
+    <div class="const-item"><span class="const-name">DEFAULT_LATENT_DIM</span><span class="const-val">32</span></div>
+    <div class="const-item"><span class="const-name">DEFAULT_NUM_HEADS</span><span class="const-val">8</span></div>
+    <div class="const-item"><span class="const-name">DEFAULT_NUM_LAYERS</span><span class="const-val">3</span></div>
+    <div class="const-item"><span class="const-name">LEARNING_RATE</span><span class="const-val">3e-4</span></div>
+    <div class="const-item"><span class="const-name">BATCH_SIZE</span><span class="const-val">32 (quantum) / 64 (meta)</span></div>
+    <div class="const-item"><span class="const-name">BUFFER_SIZE</span><span class="const-val">100,000,000</span></div>
+    <div class="const-item"><span class="const-name">GAMMA</span><span class="const-val">0.94</span></div>
+    <div class="const-item"><span class="const-name">TAU</span><span class="const-val">0.003</span></div>
+    <div class="const-item"><span class="const-name">GRADIENT_CLIP</span><span class="const-val">5.0</span></div>
+    <div class="const-item"><span class="const-name">EPSILON_START</span><span class="const-val">1.0</span></div>
+    <div class="const-item"><span class="const-name">EPSILON_END</span><span class="const-val">0.45 (45% random min)</span></div>
+    <div class="const-item"><span class="const-name">EPSILON_DECAY</span><span class="const-val">0.9995 (~20k steps)</span></div>
+    <div class="const-item"><span class="const-name">QUANTUM_N_QUBITS</span><span class="const-val">6</span></div>
+    <div class="const-item"><span class="const-name">QUANTUM_N_LAYERS</span><span class="const-val">2</span></div>
+    <div class="const-item"><span class="const-name">QUANTUM_ENTANGLEMENT</span><span class="const-val">0.25</span></div>
+    <div class="const-item"><span class="const-name">MEASUREMENT_SHOTS</span><span class="const-val">512</span></div>
+    <div class="const-item"><span class="const-name">QUANTUM_WEIGHT</span><span class="const-val">0.15</span></div>
+    <div class="const-item"><span class="const-name">UPDATE_FREQUENCY</span><span class="const-val">4</span></div>
+    <div class="const-item"><span class="const-name">FEATURE_WINDOW</span><span class="const-val">10 candles</span></div>
+    <div class="const-item"><span class="const-name">SEQ_LEN (QuantumAgent)</span><span class="const-val">32</span></div>
+    <div class="const-item"><span class="const-name">AVN d_model</span><span class="const-val">128</span></div>
+    <div class="const-item"><span class="const-name">AVN num_heads</span><span class="const-val">8</span></div>
+    <div class="const-item"><span class="const-name">AVN num_layers</span><span class="const-val">3</span></div>
+    <div class="const-item"><span class="const-name">AVN MC Samples</span><span class="const-val">5</span></div>
+  </div>
+</div>
+
+<!-- ==================== ALL CLASSES ==================== -->
+<div class="section" id="sec-allclasses" style="display:none">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(99,102,241,0.15)">☰</div>
+    Complete Class Registry — All 87 Classes
+  </div>
+  <div class="section-subtitle">Every class definition in quasar_main4.py with line numbers and category</div>
+
+  <div class="class-grid" id="all-classes-grid"></div>
+</div>
+
+</div><!-- end content -->
+
+<script>
+// All 87 classes from the codebase
+const ALL_CLASSES = [
+  { name: "AVNConfig", line: 839, cat: "system", desc: "Configuration for Attention Voting Network" },
+  { name: "VoteDecision", line: 899, cat: "system", desc: "Enum: BUY, SELL, HOLD outcomes from AVN" },
+  { name: "AVNAgentMetrics", line: 909, cat: "data", desc: "Dataclass storing per-agent performance metrics for AVN" },
+  { name: "AVNVotingExperience", line: 937, cat: "data", desc: "Dataclass for AVN training experience storage" },
+  { name: "AVNFeatureExtractor", line: 952, cat: "nn", desc: "nn.Module: Extracts features from Q-values + entropies for AVN" },
+  { name: "AVNUncertaintyHead", line: 1043, cat: "nn", desc: "nn.Module: Epistemic + aleatoric uncertainty via MC dropout" },
+  { name: "AttentionVotingNetwork", line: 1067, cat: "nn", desc: "nn.Module: Multi-head self-attention for learned agent voting" },
+  { name: "AVNPredictor", line: 1179, cat: "system", desc: "Inference wrapper with safety checks and fallback voting" },
+  { name: "AVNTrainer", line: 1323, cat: "rl", desc: "Online training with reward callbacks and batch_id tracking" },
+  { name: "CreditAssignmentMethod", line: 1960, cat: "rl", desc: "Enum: COMA, DIFFERENCE_REWARDS, QMIX, VDN, UNIFORM" },
+  { name: "MultiAgentExperience", line: 2189, cat: "data", desc: "Dataclass: Full multi-agent experience with credit assignment" },
+  { name: "AgentSpecificExperience", line: 2297, cat: "data", desc: "Dataclass: Single agent's view of a multi-agent experience" },
+  { name: "MultiAgentExperienceReplay", line: 2313, cat: "data", desc: "CTDE-aware replay buffer with per-agent sampling" },
+  { name: "ConcurrentStateCollector", line: 2555, cat: "data", desc: "Thread-safe state collector with freshness tracking" },
+  { name: "QMIXMixingNetwork", line: 2626, cat: "nn", desc: "nn.Module: QMIX monotonic value decomposition (Rashid 2018)" },
+  { name: "VDNMixingNetwork", line: 2686, cat: "nn", desc: "nn.Module: VDN additive value decomposition (Sunehag 2018)" },
+  { name: "COMACounterfactualCritic", line: 2700, cat: "nn", desc: "nn.Module: COMA counterfactual baseline (Foerster 2018)" },
+  { name: "DebugAndErrorFilter", line: 2846, cat: "infra", desc: "Logging filter: only passes DEBUG and ERROR level messages" },
+  { name: "AgentSpecificLatentProjector", line: 3194, cat: "nn", desc: "nn.Module: Per-agent projection of z_shared to prevent dominance" },
+  { name: "DiversityLoss", line: 3273, cat: "nn", desc: "nn.Module: Multi-component MARL diversity loss" },
+  { name: "AgentLevelDiagnostics", line: 3518, cat: "rl", desc: "MARL observability: collapse, coordination, gradient diagnostics" },
+  { name: "ExplorationManager", line: 4090, cat: "rl", desc: "Temperature-scaled softmax with per-agent epsilon boosting" },
+  { name: "GatedEntanglement", line: 4325, cat: "nn", desc: "nn.Module: Learnable gate capping z_shared at 30%" },
+  { name: "AdaptiveCoordinationModule", line: 4421, cat: "nn", desc: "nn.Module: Confidence-weighted local vs shared blending" },
+  { name: "TimeframeStateAugmenter", line: 4506, cat: "nn", desc: "nn.Module: Prevents state staleness with temporal embeddings" },
+  { name: "DiversityMetricsTracker", line: 4570, cat: "rl", desc: "Rolling window tracker for diversity metrics" },
+  { name: "AsyncTrainingExecutor", line: 4689, cat: "infra", desc: "Background thread training to prevent data starvation" },
+  { name: "AsyncSignalPublisher", line: 4882, cat: "infra", desc: "Non-blocking signal publishing with retry logic" },
+  { name: "Instrument", line: 5120, cat: "system", desc: "Enum: Volatility 75, Range Break, Crash, Boom indices" },
+  { name: "LoadStatus", line: 5214, cat: "system", desc: "Enum: SUCCESS, PARTIAL, FAILED, SKIPPED" },
+  { name: "RecoveryMode", line: 5225, cat: "system", desc: "Enum: STRICT, GRACEFUL, FORCE_REINIT" },
+  { name: "ComponentLoadResult", line: 5235, cat: "data", desc: "Dataclass: Result of loading a single checkpoint component" },
+  { name: "CheckpointLoadResult", line: 5254, cat: "data", desc: "Dataclass: Complete checkpoint load result with summary" },
+  { name: "ComponentSaveResult", line: 5282, cat: "data", desc: "Dataclass: Result of saving a single component" },
+  { name: "CheckpointSaveResult", line: 5290, cat: "data", desc: "Dataclass: Complete checkpoint save result" },
+  { name: "ComponentReinitializer", line: 5307, cat: "system", desc: "Static utility: Reinitializes nn.Module weights" },
+  { name: "MultiInstrumentCheckpointManager", line: 5337, cat: "infra", desc: "Full checkpoint system: GCS + HuggingFace + local + indexing" },
+  { name: "RobustConfig", line: 7235, cat: "infra", desc: "Retry decorators with exponential backoff" },
+  { name: "HealthMonitor", line: 7471, cat: "infra", desc: "Component-level health tracking and reporting" },
+  { name: "VotingEnsembleTrainer", line: 7576, cat: "rl", desc: "Gradient-level voting across training strategies" },
+  { name: "RateLimitConfig", line: 8587, cat: "infra", desc: "Dataclass: Discord rate limit configuration" },
+  { name: "MessagePriority", line: 8594, cat: "infra", desc: "Enum: LOW, NORMAL, HIGH, CRITICAL message priority" },
+  { name: "DiscordMessage", line: 8601, cat: "infra", desc: "Dataclass: Discord webhook message payload" },
+  { name: "RateLimiter", line: 8609, cat: "infra", desc: "Token bucket rate limiter for Discord webhooks" },
+  { name: "DiscordWebhookSender", line: 8640, cat: "infra", desc: "Worker-thread Discord webhook sender with priority queue" },
+  { name: "DiscordEmbedBuilder", line: 8783, cat: "infra", desc: "Static builders for Discord embed payloads" },
+  { name: "DiscordNotifier", line: 8846, cat: "infra", desc: "High-level Discord notification API" },
+  { name: "SafeTaskManager", line: 9066, cat: "infra", desc: "Asyncio task lifecycle manager" },
+  { name: "AblyConnectionStabilizer", line: 9121, cat: "infra", desc: "Ably WebSocket connection watchdog" },
+  { name: "Experience", line: 9486, cat: "data", desc: "Namedtuple: (state, action, reward, next_state, done)" },
+  { name: "MultiHeadAttention", line: 9504, cat: "nn", desc: "nn.Module: Standard MHA (6 heads, dropout=0.45)" },
+  { name: "CrossTimeframeAttention", line: 9558, cat: "nn", desc: "nn.Module: Attention across 8 timeframes with embeddings" },
+  { name: "PrioritizedReplayBuffer", line: 9624, cat: "data", desc: "Prioritized experience replay (Schaul 2015)" },
+  { name: "Actor (Quantum)", line: 9688, cat: "nn", desc: "nn.Module: Policy network for quantum agents" },
+  { name: "Critic (Quantum)", line: 9728, cat: "nn", desc: "nn.Module: Value network for quantum agents" },
+  { name: "ExperienceManager", line: 10173, cat: "data", desc: "Manages experience collection and sampling" },
+  { name: "QuantumTradingSystem", line: 10232, cat: "quantum", desc: "Top-level container for all quantum agents" },
+  { name: "QuantumStateEncodingWrapperModule", line: 10651, cat: "quantum", desc: "nn.Module: Quantum circuit state encoding" },
+  { name: "QuantumFeatureNormalizer", line: 10842, cat: "quantum", desc: "nn.Module: Learnable quantum feature normalization" },
+  { name: "QuantumForecastingAdvisor", line: 10872, cat: "quantum", desc: "nn.Module: 6-qubit quantum forecasting with 30-step horizon" },
+  { name: "LogLevel", line: 11612, cat: "infra", desc: "Enum: DEBUG, INFO, WARNING, ERROR, CRITICAL" },
+  { name: "LogEntry", line: 11621, cat: "infra", desc: "Dataclass: Structured log entry for Discord" },
+  { name: "DiscordEmbedGenerator", line: 11658, cat: "infra", desc: "Generates rich Discord embeds for system events" },
+  { name: "DiscordLogBatcher", line: 12059, cat: "infra", desc: "Batches Discord log messages for efficiency" },
+  { name: "EnhancedDiscordLogger", line: 12639, cat: "infra", desc: "Full-featured Discord logging with batching" },
+  { name: "MockBatcher", line: 12864, cat: "infra", desc: "Mock batcher for testing without Discord" },
+  { name: "QuantumDiscordLogger", line: 13183, cat: "infra", desc: "Quantum-system-specific Discord logger" },
+  { name: "AutosaveManager", line: 14061, cat: "infra", desc: "Periodic model/state autosave" },
+  { name: "EnhancedFeatureMessage", line: 14140, cat: "data", desc: "Dataclass: Enhanced feature message payload" },
+  { name: "TradingInferenceRequest", line: 14151, cat: "data", desc: "Dataclass: Inference request payload" },
+  { name: "TradingInferenceResult", line: 14162, cat: "data", desc: "Dataclass: Inference result payload" },
+  { name: "EnhancedIngestionTier", line: 14177, cat: "data", desc: "Tier 1: Raw tick data ingestion from Ably/Redis" },
+  { name: "EnhancedGPUProcessingTier", line: 14428, cat: "data", desc: "Tier 2: GPU feature computation and quantum encoding" },
+  { name: "AnalyticsTier", line: 14771, cat: "data", desc: "Tier 3: Signal analytics and performance tracking" },
+  { name: "TradingSystemIntegrationManager", line: 14945, cat: "system", desc: "3-tier pipeline coordinator" },
+  { name: "QuantumExperienceCollector", line: 15175, cat: "data", desc: "Quantum-specific experience collection" },
+  { name: "MetaModelTrainer", line: 15338, cat: "rl", desc: "TensorFlow meta-model Transformer trainer" },
+  { name: "PositionalEncoding (TF)", line: 15649, cat: "nn", desc: "tf.keras.Layer: Sinusoidal positional encoding" },
+  { name: "ComplexLayerNorm", line: 15675, cat: "nn", desc: "nn.Module: Layer normalization for complex numbers" },
+  { name: "TransformerBlock (TF)", line: 15699, cat: "nn", desc: "tf.keras.Layer: TF Transformer block for meta-model" },
+  { name: "ConvPreprocessor", line: 15784, cat: "nn", desc: "nn.Module: 1D CNN temporal feature preprocessor" },
+  { name: "SelfAttention", line: 15800, cat: "nn", desc: "nn.Module: Simple self-attention layer" },
+  { name: "ResidualBlock", line: 15822, cat: "nn", desc: "nn.Module: Residual MLP block" },
+  { name: "VotingTransformer", line: 15842, cat: "nn", desc: "nn.Module: Legacy Transformer voting (being replaced by AVN)" },
+  { name: "VotingDataset", line: 15936, cat: "data", desc: "Dataset: PyTorch dataset for voting model training" },
+  { name: "OUNoise", line: 15963, cat: "rl", desc: "Ornstein-Uhlenbeck noise for continuous exploration" },
+  { name: "ResidualBiLSTMBlock", line: 15983, cat: "nn", desc: "nn.Module: Bidirectional LSTM with residual connections" },
+  { name: "MultiheadAttention (v2)", line: 16028, cat: "nn", desc: "nn.Module: Alternate MHA implementation" },
+  { name: "TemporalCNN", line: 16076, cat: "nn", desc: "nn.Module: Dilated temporal convolutions" },
+  { name: "FeatureEmbedding", line: 16107, cat: "nn", desc: "nn.Module: Feature embedding layer" },
+  { name: "Actor (TD3)", line: 16139, cat: "nn", desc: "nn.Module: TD3 continuous actor" },
+  { name: "Critic (TD3)", line: 16196, cat: "nn", desc: "nn.Module: TD3 twin critics" },
+  { name: "ReplayBuffer", line: 16255, cat: "data", desc: "Simple deque-based replay buffer" },
+  { name: "TD3Agent", line: 16298, cat: "rl", desc: "Twin Delayed DDPG agent" },
+  { name: "StandardScaler (custom)", line: 16638, cat: "data", desc: "Custom sklearn-compatible standard scaler" },
+  { name: "TimeframeAgent", line: 16662, cat: "rl", desc: "Legacy per-timeframe agent with CandleBuilder" },
+  { name: "MetaModelExperienceBuffer", line: 17179, cat: "data", desc: "Buffer for meta-model training data" },
+  { name: "CandleBuilder", line: 17231, cat: "data", desc: "OHLCV candle construction from ticks" },
+  { name: "DynamicThreshold", line: 17275, cat: "data", desc: "Adaptive thresholds using kurtosis/skewness" },
+  { name: "RewardBatchProcessor", line: 17453, cat: "rl", desc: "Reward matching and per-agent credit distribution" },
+  { name: "Experience (v2)", line: 18312, cat: "data", desc: "Extended experience namedtuple" },
+  { name: "ExperienceReplay", line: 18341, cat: "data", desc: "Standard experience replay buffer" },
+  { name: "ComplexLinear", line: 18465, cat: "nn", desc: "nn.Module: Complex-valued linear layer (W_real, W_imag)" },
+  { name: "ModReLU", line: 18486, cat: "nn", desc: "nn.Module: Modified ReLU for complex numbers" },
+  { name: "ComplexBatchNorm", line: 18498, cat: "nn", desc: "nn.Module: Batch norm for complex tensors" },
+  { name: "ComplexMultiheadAttention", line: 18508, cat: "nn", desc: "nn.Module: Dual MHA for complex numbers" },
+  { name: "TimeframeEncoder", line: 18525, cat: "nn", desc: "nn.Module: Single timeframe state encoder" },
+  { name: "MultiTimeframeFusion", line: 18542, cat: "nn", desc: "nn.Module: Temporal attention fusion of 8 timeframes" },
+  { name: "MultiTimeframeSharedLatentEncoder", line: 18619, cat: "nn", desc: "nn.Module: Shared z_shared encoder for entanglement" },
+  { name: "MultiTimeframeEntangledComplexAgent", line: 18708, cat: "nn", desc: "nn.Module: Individual entangled complex-valued agent" },
+  { name: "RobustLatentEncoder", line: 18816, cat: "nn", desc: "nn.Module: Robust z_shared with spectral normalization" },
+  { name: "MultiTimeframeEntangledComplexAgentSystem", line: 19068, cat: "nn", desc: "nn.Module: Full 8-agent entangled system" },
+  { name: "QuantumSystemTrainer", line: 19610, cat: "rl", desc: "Main MARL training loop with anti-collapse" },
+  { name: "QuantumReplayBuffer", line: 21339, cat: "quantum", desc: "Quantum experience buffer (5M capacity)" },
+  { name: "QuantumAgent", line: 21399, cat: "quantum", desc: "nn.Module: Individual quantum agent with Actor-Critic" },
+  { name: "QuantumVotingSystem", line: 21745, cat: "quantum", desc: "Confidence-weighted majority voting across 8 agents" },
+  { name: "QuantumSystemBridge", line: 22167, cat: "quantum", desc: "Abstraction bridging quantum + classical systems" },
+  { name: "IntegratedSignalSystem", line: 23623, cat: "system", desc: "Master coordinator: data → agents → voting → signal" },
+  { name: "DedicatedAblyConnectionManager", line: 30974, cat: "infra", desc: "Dedicated thread Ably WebSocket management" },
+  { name: "QuantumMetaController", line: 33648, cat: "system", desc: "God-class: voyage management + lifecycle control" },
+];
+
+// Render all classes
+function renderAllClasses() {
+  const grid = document.getElementById('all-classes-grid');
+  if (!grid) return;
+  grid.innerHTML = ALL_CLASSES.map(c => {
+    const badgeMap = { nn: 'badge-nn', quantum: 'badge-quantum', system: 'badge-system', data: 'badge-data', infra: 'badge-infra', rl: 'badge-rl' };
+    const labelMap = { nn: 'NN', quantum: 'QUANTUM', system: 'SYSTEM', data: 'DATA', infra: 'INFRA', rl: 'RL' };
+    return `<div class="class-card">
+      <div class="class-card-header">
+        <span class="class-card-badge ${badgeMap[c.cat]}">${labelMap[c.cat]}</span>
+        <span class="class-card-name">${c.name}</span>
+        <span class="class-card-line">L:${c.line}</span>
+      </div>
+      <div class="class-card-desc">${c.desc}</div>
+    </div>`;
+  }).join('');
+}
+
+// Navigation
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+  document.getElementById('sec-' + id).style.display = 'block';
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  if (id === 'allclasses') renderAllClasses();
+}
+
+// Initialize
+renderAllClasses();
+</script>
+</body>
+</html>

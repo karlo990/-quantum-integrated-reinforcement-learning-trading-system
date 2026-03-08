@@ -1,0 +1,68 @@
+# ============================================================================
+# K1RL QUASAR — Redis Configuration (HuggingFace Spaces)
+# Optimized for container environment with memory constraints
+# ============================================================================
+
+# Network
+bind 127.0.0.1
+port 6379
+timeout 0
+tcp-keepalive 60
+
+# Security
+requirepass k1rl_099a0c008e32300dc3c14189
+protected-mode yes
+
+# Persistence (disabled for HF Spaces - RAM only)
+save ""
+appendonly no
+
+# Memory management (important for 12GB limit)
+maxmemory 2gb
+maxmemory-policy allkeys-lru
+maxmemory-samples 5
+
+# Logging
+loglevel notice
+logfile /home/user/app/logs/redis.log
+
+# General
+daemonize no
+supervised no
+pidfile /tmp/redis.pid
+databases 16
+
+# Performance
+tcp-backlog 511
+rdbcompression yes
+rdbchecksum yes
+
+# Slow log
+slowlog-log-slower-than 10000
+slowlog-max-len 128
+
+# Client output buffer limits
+# ✅ FIX v5.2.0: Extended pubsub limits to 2GB to prevent silent disconnections
+# Old: pubsub 32mb 8mb 60 — too aggressive under memory pressure
+# Hard limit 2GB, soft limit 512MB with 300s grace period
+client-output-buffer-limit normal 0 0 0
+client-output-buffer-limit replica 256mb 64mb 60
+client-output-buffer-limit pubsub 2gb 512mb 300
+
+# Memory usage optimizations for containers
+hash-max-ziplist-entries 512
+hash-max-ziplist-value 64
+list-max-ziplist-size -2
+list-compress-depth 0
+set-max-intset-entries 512
+zset-max-ziplist-entries 128
+zset-max-ziplist-value 64
+hll-sparse-max-bytes 3000
+stream-node-max-bytes 4096
+stream-node-max-entries 100
+
+# Disable some features not needed in HF Spaces
+lua-time-limit 5000
+# ✅ FIX: Enable keyspace notifications for connection monitoring
+# Kg = generic commands + keyspace events (helps debug disconnections)
+notify-keyspace-events "Kg"

@@ -1,0 +1,72 @@
+# ============================================================================
+# K1RL QUASAR — HuggingFace Spaces Deployment
+# Port 7860 | 12GB RAM | Production Ready
+# ============================================================================
+
+FROM python:3.10-slim
+
+# ── Environment ──────────────────────────────────────────────────────────────
+ENV PYTHONUNBUFFERED=1
+ENV DEBIAN_FRONTEND=noninteractive
+ENV HF_HOME=/home/user/app/.cache/huggingface
+ENV TRANSFORMERS_CACHE=/home/user/app/.cache/huggingface
+ENV TORCH_HOME=/home/user/app/.cache/torch
+
+# ── System packages ──────────────────────────────────────────────────────────
+RUN apt-get update && apt-get install -y \
+    supervisor \
+    redis-server \
+    curl \
+    wget \
+    git \
+    htop \
+    nano \
+    procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Print Redis version for debugging ────────────────────────────────────────
+RUN redis-server --version
+
+# ── Application setup ────────────────────────────────────────────────────────
+WORKDIR /home/user/app
+
+# Copy requirements first (for Docker layer caching)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy all application files
+COPY . .
+
+# ── Directory structure ───────────────────────────────────────────────────────
+RUN mkdir -p /home/user/app/logs \
+             /home/user/app/checkpoints \
+             /home/user/app/data \
+             /home/user/app/.cache \
+             /home/user/app/saves \
+             /tmp/quasar_cache \
+    && chmod 777 /home/user/app/logs \
+    && chmod 777 /tmp/quasar_cache
+
+# ── Redis configuration ───────────────────────────────────────────────────────
+COPY redis_hf.conf /etc/redis/redis.conf
+RUN chown root:root /etc/redis/redis.conf && chmod 644 /etc/redis/redis.conf
+
+# ── Test Redis config before building further ─────────────────────────────────
+RUN redis-server /etc/redis/redis.conf --test-config || true
+
+# ── Supervisor configuration ──────────────────────────────────────────────────
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# ── Permissions ───────────────────────────────────────────────────────────────
+RUN find /home/user/app -name "*.py" -exec chmod +x {} \; && \
+    chmod 755 /home/user/app
+
+# ── Health check ──────────────────────────────────────────────────────────────
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:7860/health || exit 1
+
+# ── Expose HuggingFace Spaces port ───────────────────────────────────────────
+EXPOSE 7860
+
+# ── Startup ───────────────────────────────────────────────────────────────────
+CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf", "-n"]

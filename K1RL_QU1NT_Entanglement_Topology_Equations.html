@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>K1RL_QU1NT — Per-Agent Entanglement Topology: Mathematical Specification</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<style>
+:root {
+  --bg: #faf8f3;
+  --bg2: #f3efe6;
+  --ink: #1a1a1a;
+  --ink2: #4a4a4a;
+  --ink3: #8a8a8a;
+  --accent: #1a3a5c;
+  --accent2: #2d6a9f;
+  --quantum: #0d5e4f;
+  --quantum2: #1a8f75;
+  --red: #9b2335;
+  --gold: #b8860b;
+  --border: #d4cfc4;
+  --paper: #fffef9;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 18px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* PAGE LAYOUT */
+.page {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 60px 48px 80px;
+}
+
+/* HEADER */
+.doc-header {
+  text-align: center;
+  padding-bottom: 40px;
+  border-bottom: 2px solid var(--ink);
+  margin-bottom: 48px;
+}
+.doc-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 16px;
+}
+.doc-title {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.doc-subtitle {
+  font-size: 20px;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--ink2);
+  margin-bottom: 20px;
+}
+.doc-meta {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--ink3);
+  letter-spacing: 1px;
+}
+
+/* SECTIONS */
+.section {
+  margin-bottom: 48px;
+}
+.section-num {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent2);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+h2 {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 16px;
+  line-height: 1.3;
+}
+h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-top: 32px;
+  margin-bottom: 12px;
+}
+p { margin-bottom: 16px; }
+strong { font-weight: 700; }
+em { font-style: italic; }
+
+/* EQUATION BLOCKS */
+.eq-block {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 2px;
+  padding: 20px 24px;
+  margin: 20px 0;
+  overflow-x: auto;
+}
+.eq-block.quantum {
+  border-left-color: var(--quantum);
+}
+.eq-block.problem {
+  border-left-color: var(--red);
+}
+.eq-block.solution {
+  border-left-color: var(--quantum2);
+  background: #f4faf8;
+}
+.eq-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.eq-label.current { color: var(--red); }
+.eq-label.proposed { color: var(--quantum); }
+.eq-label.definition { color: var(--accent); }
+
+/* TOPOLOGY DIAGRAMS */
+.topo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 20px 0;
+}
+.topo-card {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 16px 18px;
+}
+.topo-card h4 {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--quantum);
+  margin-bottom: 4px;
+}
+.topo-card .agent-name {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.topo-card .edges {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--ink2);
+  line-height: 1.8;
+}
+.topo-card .property {
+  font-size: 14px;
+  color: var(--ink3);
+  font-style: italic;
+  margin-top: 6px;
+}
+
+/* CODE BLOCKS */
+.code-ref {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  background: rgba(26,58,92,0.06);
+  padding: 2px 6px;
+  border-radius: 2px;
+  color: var(--accent);
+}
+
+/* DIVIDERS */
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 40px 0;
+}
+.section-divider {
+  border: none;
+  border-top: 2px solid var(--ink);
+  margin: 56px 0 48px;
+}
+
+/* TABLE */
+.eq-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 16px;
+}
+.eq-table th {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink3);
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 2px solid var(--border);
+}
+.eq-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(212,207,196,0.5);
+  vertical-align: top;
+}
+.eq-table td:first-child {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--quantum);
+  white-space: nowrap;
+}
+
+/* CALLOUT */
+.callout {
+  background: #fef9f0;
+  border: 1px solid #e8d5b0;
+  border-radius: 4px;
+  padding: 16px 20px;
+  margin: 20px 0;
+  font-size: 16px;
+}
+.callout.critical {
+  background: #fef2f2;
+  border-color: #e5c0c0;
+}
+.callout-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 6px;
+}
+.callout.critical .callout-label { color: var(--red); }
+
+@media (max-width: 700px) {
+  .page { padding: 32px 20px; }
+  .doc-title { font-size: 26px; }
+  .topo-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ═══════════ HEADER ═══════════ -->
+<div class="doc-header">
+  <div class="doc-label">K1RL_QU1NT V8.7.0 — Technical Specification</div>
+  <div class="doc-title">Per-Agent Quantum Entanglement Topologies</div>
+  <div class="doc-subtitle">Mathematical Foundation for Breaking Unanimous Vote Collapse</div>
+  <div class="doc-meta">
+    ENG KARL MUZUNZE &nbsp;·&nbsp; quasar_main4.py L:10706–10808 &nbsp;·&nbsp; February 2026
+  </div>
+</div>
+
+<!-- ═══════════ §1 CURRENT SYSTEM ═══════════ -->
+<div class="section">
+  <div class="section-num">Section I</div>
+  <h2>Current System: The Identical Circuit Problem</h2>
+
+  <p>At present, every agent <em>a ∈ {xs, s, m, l, xl, xxl, 5m, 10m}</em> passes through the <strong>same</strong> quantum circuit construction at <span class="code-ref">_create_quantum_circuit()</span> (L:10706). The circuit operates on <em>n</em> = 6 qubits with the following three stages:</p>
+
+  <h3>1.1 &nbsp; State Encoding (Rotation Layer)</h3>
+
+  <p>The classical state vector <strong>s</strong> ∈ ℝ⁵⁸ is normalized into rotation angles θ ∈ [0, 2π]⁶ and applied as single-qubit Y-rotations:</p>
+
+  <div class="eq-block">
+    <div class="eq-label definition">Definition 1 — State Encoding</div>
+    $$R_{\text{encode}} = \bigotimes_{i=0}^{5} R_Y(\theta_i) \qquad \text{where} \quad \theta_i = \frac{s_i - s_{\min}}{s_{\max} - s_{\min} + \epsilon} \cdot 2\pi$$
+    <br>
+    $$|\psi_0\rangle = R_{\text{encode}} \, |000000\rangle$$
+  </div>
+
+  <h3>1.2 &nbsp; Entanglement Layer (CNOT Chain)</h3>
+
+  <p>A <strong>linear chain</strong> of CNOT gates entangles adjacent qubits. This is the same for <em>every</em> agent:</p>
+
+  <div class="eq-block problem">
+    <div class="eq-label current">Current — Identical for ALL 8 Agents</div>
+    $$U_{\text{entangle}} = \text{CNOT}_{4,5} \cdot \text{CNOT}_{3,4} \cdot \text{CNOT}_{2,3} \cdot \text{CNOT}_{1,2} \cdot \text{CNOT}_{0,1}$$
+    <br>
+    $$|\psi_1\rangle = U_{\text{entangle}} \, |\psi_0\rangle$$
+  </div>
+
+  <p>In graph notation, this is the topology <em>G</em> = {(0→1), (1→2), (2→3), (3→4), (4→5)} — a simple path graph. Every agent uses this exact graph.</p>
+
+  <h3>1.3 &nbsp; Phase Encoding Layer</h3>
+
+  <p>A second layer applies Z-rotations with offset indices for additional expressivity:</p>
+
+  <div class="eq-block">
+    <div class="eq-label definition">Definition 2 — Phase Encoding</div>
+    $$R_{\text{phase}} = \bigotimes_{i=0}^{5} R_Z\!\left(\theta_{(i + 3) \bmod 58}\right) \qquad |\psi_2\rangle = R_{\text{phase}} \, |\psi_1\rangle$$
+  </div>
+
+  <h3>1.4 &nbsp; Measurement &amp; Feature Extraction</h3>
+
+  <p>The statevector simulator computes the exact final state, and features are the Born-rule probabilities:</p>
+
+  <div class="eq-block">
+    <div class="eq-label definition">Definition 3 — Quantum Feature Vector</div>
+    $$\mathbf{f}_q = \Big[ \, |\langle k \,|\, \psi_2 \rangle|^2 \Big]_{k=0}^{63} \in \mathbb{R}^{64}$$
+    <br>
+    <p style="font-size:15px;color:var(--ink2);margin:0">where |k⟩ is the k-th computational basis state of the 6-qubit Hilbert space ℋ = (ℂ²)⊗⁶</p>
+  </div>
+
+  <div class="callout critical">
+    <div class="callout-label">The Problem</div>
+    Since <em>U</em><sub>entangle</sub> is identical for all agents, and the state <strong>s</strong> is the same market snapshot:
+    $$\mathbf{f}_q^{(\text{xs})} = \mathbf{f}_q^{(\text{s})} = \mathbf{f}_q^{(\text{m})} = \cdots = \mathbf{f}_q^{(\text{10m})}$$
+    All 8 agents receive <strong>the same quantum features</strong>, producing the same Q-values, producing the same votes, producing a permanent lock to SELL for 2+ hours.
+  </div>
+</div>
+
+<hr class="section-divider">
+
+<!-- ═══════════ §2 PROPOSED SOLUTION ═══════════ -->
+<div class="section">
+  <div class="section-num">Section II</div>
+  <h2>Proposed Solution: Agent-Specific Entanglement Topologies</h2>
+
+  <p>We replace the single universal entanglement operator <em>U</em><sub>entangle</sub> with a family of <strong>eight distinct operators</strong>, one per agent. Each operator defines a unique directed graph <em>G<sub>a</sub></em> = (<em>V</em>, <em>E<sub>a</sub></em>) over the 6 qubit vertices, determining <em>which features correlate with which</em>.</p>
+
+  <div class="eq-block solution">
+    <div class="eq-label proposed">Proposal — Per-Agent Entanglement</div>
+    $$U_{\text{entangle}}^{(a)} = \prod_{(c,t) \,\in\, E_a} \text{CNOT}_{c,t} \qquad \forall \; a \in \mathcal{A}$$
+    <br>
+    <p style="font-size:15px;color:var(--quantum);margin:0">where 𝒜 = {xs, s, m, l, xl, xxl, 5m, 10m} and E<sub>a</sub> is the unique edge set for agent a</p>
+  </div>
+
+  <p>The full circuit for agent <em>a</em> becomes:</p>
+
+  <div class="eq-block solution">
+    <div class="eq-label proposed">Modified Full Circuit — Agent a</div>
+    $$|\psi_{\text{final}}^{(a)}\rangle = R_{\text{phase}} \cdot U_{\text{entangle}}^{(a)} \cdot R_{\text{encode}} \; |000000\rangle$$
+    <br>
+    $$\mathbf{f}_q^{(a)} = \Big[ \, |\langle k \,|\, \psi_{\text{final}}^{(a)} \rangle|^2 \Big]_{k=0}^{63}$$
+  </div>
+
+  <div class="callout">
+    <div class="callout-label">Key Property</div>
+    Since <em>U</em><sub>entangle</sub><sup>(xs)</sup> ≠ <em>U</em><sub>entangle</sub><sup>(5m)</sup>, even given the same input state, the outputs are structurally different:
+    $$\mathbf{f}_q^{(a)} \neq \mathbf{f}_q^{(b)} \quad \forall \; a \neq b$$
+    This is not randomness — it is <strong>genuine structural diversity</strong>. Different CNOT patterns extract different multi-qubit correlations from the same encoded state.
+  </div>
+</div>
+
+<hr class="section-divider">
+
+<!-- ═══════════ §3 TOPOLOGY DEFINITIONS ═══════════ -->
+<div class="section">
+  <div class="section-num">Section III</div>
+  <h2>The Eight Entanglement Topologies</h2>
+
+  <p>Each topology is chosen to extract a fundamentally different class of correlations. Together they span the space of pairwise qubit interactions on 6 qubits.</p>
+
+  <div class="topo-grid">
+    <div class="topo-card">
+      <h4>Agent 0</h4>
+      <div class="agent-name">xs — Linear Chain</div>
+      <div class="edges">
+        E<sub>xs</sub> = {(0,1), (1,2), (2,3), (3,4), (4,5)}<br>
+        |E| = 5 edges
+      </div>
+      <div class="property">Nearest-neighbor correlations. Sequential feature interaction. Current default topology preserved for backward compatibility.</div>
+    </div>
+
+    <div class="topo-card">
+      <h4>Agent 1</h4>
+      <div class="agent-name">s — Skip-1 Connections</div>
+      <div class="edges">
+        E<sub>s</sub> = {(0,2), (1,3), (2,4), (3,5), (0,4)}<br>
+        |E| = 5 edges
+      </div>
+      <div class="property">Next-nearest-neighbor correlations. Captures patterns that skip one feature apart — detects larger-scale relationships.</div>
+    </div>
+
+    <div class="topo-card">
+      <h4>Agent 2</h4>
+      <div class="agent-name">m — Skip-2 Connections</div>
+      <div class="edges">
+        E<sub>m</sub> = {(0,3), (1,4), (2,5), (0,5), (1,2)}<br>
+        |E| = 5 edges
+      </div>
+      <div class="property">Long-range + one local connection. Bridges distant features that would never interact in the linear chain.</div>
+    </div>
+
+    <div class="topo-card">
+      <h4>Agent 3</h4>
+      <div class="agent-name">l — Mirror/Palindrome</div>
+      <div class="edges">
+        E<sub>l</sub> = {(0,5), (1,4), (2,3), (0,2), (3,5)}<br>
+        |E| = 5 edges
+      </div>
+      <div class="property">Symmetric outside-in topology. First-last, second-second-to-last pairings detect mirror-symmetric patterns in feature space.</div>
+    </div>
+
+    <div class="topo-card">
+      <h4>Agent 4</h4>
+      <div class="agent-name">xl — Paired Blocks</div>
+      <div class="edges">
+        E<sub>xl</sub> = {(0,1), (2,3), (4,5), (0,3), (2,5)}<br>
+        |E| = 5 edges
+      </div>
+      <div class="property">Block-structured: three local pairs + two inter-block bridges. Hierarchical feature grouping.</div>
+    </div>
+
+    <div class="topo-card">
+      <h4>Agent 5</h4>
+      <div class="agent-name">xxl — Bidirectional</div>
+      <div class="edges">
+        E<sub>xxl</sub> = {(0,3), (3,0), (1,4), (4,1), (2,5)}<br>
+        |E| = 5 edges
+      </div>
+      <div class="property">Reciprocal entanglement: information flows both ways between paired qubits. Creates deeper correlation structure than unidirectional.</div>
+    </div>
+
+    <div class="topo-card">
+      <h4>Agent 6</h4>
+      <div class="agent-name">5m — Ring Topology</div>
+      <div class="edges">
+        E<sub>5m</sub> = {(0,1), (1,2), (2,3), (3,4), (4,5), (5,0)}<br>
+        |E| = 6 edges
+      </div>
+      <div class="property">Cyclic graph — no qubit is an endpoint. Information can flow around the full ring. Higher connectivity than linear chain.</div>
+    </div>
+
+    <div class="topo-card">
+      <h4>Agent 7</h4>
+      <div class="agent-name">10m — Dual Star</div>
+      <div class="edges">
+        E<sub>10m</sub> = {(0,1), (0,3), (0,5), (2,1), (2,3), (4,5)}<br>
+        |E| = 6 edges
+      </div>
+      <div class="property">Two hub qubits (0, 2) each connected to 3 others. Star topology captures centralized correlations from hub features.</div>
+    </div>
+  </div>
+</div>
+
+<hr class="section-divider">
+
+<!-- ═══════════ §4 MATHEMATICAL PROOF OF DIVERSITY ═══════════ -->
+<div class="section">
+  <div class="section-num">Section IV</div>
+  <h2>Mathematical Proof of Feature Diversity</h2>
+
+  <h3>4.1 &nbsp; Why Different CNOT Topologies Produce Different Outputs</h3>
+
+  <p>The CNOT gate acting on control qubit <em>c</em> and target qubit <em>t</em> is the unitary:</p>
+
+  <div class="eq-block">
+    <div class="eq-label definition">Definition 4 — CNOT Operator</div>
+    $$\text{CNOT}_{c,t} = |0\rangle\langle 0|_c \otimes I_t \;+\; |1\rangle\langle 1|_c \otimes X_t$$
+    <br>
+    <p style="font-size:15px;color:var(--ink2);margin:0">It flips the target qubit if and only if the control qubit is |1⟩. This creates entanglement between the two qubits — their states become correlated.</p>
+  </div>
+
+  <p>Crucially, CNOT gates <strong>do not commute</strong> in general when they share qubits:</p>
+
+  <div class="eq-block">
+    <div class="eq-label definition">Theorem 1 — Non-Commutativity</div>
+    $$\text{CNOT}_{0,1} \cdot \text{CNOT}_{1,2} \;\neq\; \text{CNOT}_{1,2} \cdot \text{CNOT}_{0,1}$$
+    <br>
+    <p style="font-size:15px;color:var(--ink2);margin:0">Therefore: different orderings of the same CNOT set produce different unitaries, and entirely different CNOT sets produce even more different unitaries.</p>
+  </div>
+
+  <h3>4.2 &nbsp; Correlation Structure per Topology</h3>
+
+  <p>Each entanglement graph <em>G<sub>a</sub></em> defines a specific <strong>correlation matrix</strong> over the 6 qubits. Let ρ<sub>ij</sub><sup>(a)</sup> denote the two-qubit reduced density matrix of qubits <em>i</em> and <em>j</em> after applying topology <em>a</em>. The <strong>concurrence</strong> C<sub>ij</sub><sup>(a)</sup> measures the entanglement between qubits <em>i</em> and <em>j</em>:</p>
+
+  <div class="eq-block solution">
+    <div class="eq-label proposed">Correlation Structure</div>
+    $$C_{ij}^{(a)} > 0 \quad \text{if and only if} \quad \text{qubits } i,j \text{ are connected (directly or transitively) in } G_a$$
+    <br>
+    <p style="font-size:15px;color:var(--quantum);margin:0">Different graphs G<sub>a</sub> → different non-zero entries in the correlation matrix → different feature vectors f<sub>q</sub><sup>(a)</sup></p>
+  </div>
+
+  <p>For example, in the <strong>linear chain</strong> (agent xs), qubits 0 and 5 are only weakly entangled (through 4 intermediaries). In the <strong>mirror topology</strong> (agent l), they are <em>directly</em> connected via CNOT<sub>0,5</sub>. This means:</p>
+
+  <div class="eq-block solution">
+    <div class="eq-label proposed">Concrete Example</div>
+    $$C_{0,5}^{(\text{xs})} \ll C_{0,5}^{(\text{l})} \qquad \text{and} \qquad C_{0,1}^{(\text{xs})} \gg C_{0,1}^{(\text{l})}$$
+    <br>
+    <p style="font-size:15px;color:var(--quantum);margin:0">Agent xs is sensitive to local correlations (features 0↔1). Agent l is sensitive to global correlations (features 0↔5). They extract complementary information.</p>
+  </div>
+
+  <h3>4.3 &nbsp; Feature Distance Guarantee</h3>
+
+  <p>We can bound the minimum distance between any two agents' feature vectors. Let <em>d<sub>TV</sub></em> denote total variation distance:</p>
+
+  <div class="eq-block solution">
+    <div class="eq-label proposed">Theorem 2 — Minimum Diversity</div>
+    $$d_{\text{TV}}\!\left(\mathbf{f}_q^{(a)}, \, \mathbf{f}_q^{(b)}\right) = \frac{1}{2} \sum_{k=0}^{63} \left| f_{q,k}^{(a)} - f_{q,k}^{(b)} \right| \;>\; 0 \quad \forall \; a \neq b$$
+    <br>
+    <p style="font-size:15px;color:var(--quantum);margin:0">This holds for any non-trivial input state because U<sup>(a)</sup> ≠ U<sup>(b)</sup> as operators. The feature vectors are guaranteed to differ for every market snapshot — not by randomness, but by construction.</p>
+  </div>
+</div>
+
+<hr class="section-divider">
+
+<!-- ═══════════ §5 FULL MODIFIED PIPELINE ═══════════ -->
+<div class="section">
+  <div class="section-num">Section V</div>
+  <h2>Full Modified Pipeline Equations</h2>
+
+  <p>Putting it all together, the complete signal generation pipeline for agent <em>a</em> at time <em>t</em> becomes:</p>
+
+  <div class="eq-block solution">
+    <div class="eq-label proposed">Complete Agent Pipeline — Modified</div>
+
+    <p style="margin-bottom:12px"><strong>Step 1 — State Normalization:</strong></p>
+    $$\theta_i^{(t)} = \frac{s_i^{(t)} - s_{\min}^{(t)}}{s_{\max}^{(t)} - s_{\min}^{(t)} + \epsilon} \cdot 2\pi, \qquad i = 0, \ldots, 5$$
+
+    <p style="margin-bottom:12px;margin-top:16px"><strong>Step 2 — Rotation Encoding:</strong></p>
+    $$|\psi_0^{(t)}\rangle = \bigotimes_{i=0}^{5} R_Y(\theta_i^{(t)}) \; |0\rangle^{\otimes 6}$$
+
+    <p style="margin-bottom:12px;margin-top:16px"><strong>Step 3 — Agent-Specific Entanglement:</strong></p>
+    $$|\psi_1^{(a,t)}\rangle = U_{\text{entangle}}^{(a)} \, |\psi_0^{(t)}\rangle = \prod_{(c,t) \in E_a} \text{CNOT}_{c,t} \; |\psi_0^{(t)}\rangle$$
+
+    <p style="margin-bottom:12px;margin-top:16px"><strong>Step 4 — Phase Layer:</strong></p>
+    $$|\psi_2^{(a,t)}\rangle = \bigotimes_{i=0}^{5} R_Z(\theta_{(i+3) \bmod 58}^{(t)}) \; |\psi_1^{(a,t)}\rangle$$
+
+    <p style="margin-bottom:12px;margin-top:16px"><strong>Step 5 — Feature Extraction:</strong></p>
+    $$\mathbf{f}_q^{(a,t)} = \Big[ |\langle k | \psi_2^{(a,t)} \rangle|^2 \Big]_{k=0}^{63} \in \mathbb{R}^{64}$$
+
+    <p style="margin-bottom:12px;margin-top:16px"><strong>Step 6 — Q-Value Computation:</strong></p>
+    $$\mathbf{Q}^{(a,t)} = \text{DQN}_a\!\left(\text{fusion}\!\left(\text{classical}_a(\mathbf{s}^{(t)}), \; \mathbf{f}_q^{(a,t)}\right)\right) \in \mathbb{R}^2$$
+
+    <p style="margin-bottom:12px;margin-top:16px"><strong>Step 7 — Action Selection:</strong></p>
+    $$\alpha^{(a,t)} = \begin{cases} \text{argmax}_j \; Q_j^{(a,t)} & \text{with probability } 1 - \epsilon_a \\ \text{Uniform}(\{0,1\}) & \text{with probability } \epsilon_a \end{cases}$$
+
+    <p style="margin-bottom:12px;margin-top:16px"><strong>Step 8 — Voting Aggregation:</strong></p>
+    $$\alpha_{\text{final}}^{(t)} = \text{AVN}\!\left(\{\mathbf{Q}^{(a,t)}\}_{a \in \mathcal{A}}, \; \{\alpha^{(a,t)}\}_{a \in \mathcal{A}}\right)$$
+  </div>
+
+  <p>The <strong>only change</strong> from the current system is in <strong>Step 3</strong>. Steps 1, 2, and 4–8 remain identical. The modification is surgically precise: we replace one universal unitary with eight agent-specific unitaries.</p>
+</div>
+
+<hr class="section-divider">
+
+<!-- ═══════════ §6 TOPOLOGY COMPARISON ═══════════ -->
+<div class="section">
+  <div class="section-num">Section VI</div>
+  <h2>Topology Properties Comparison</h2>
+
+  <table class="eq-table">
+    <thead>
+      <tr>
+        <th>Agent</th>
+        <th>Topology</th>
+        <th>|E|</th>
+        <th>Diameter</th>
+        <th>Max Degree</th>
+        <th>Correlation Type</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>xs</td>
+        <td>Linear chain</td>
+        <td>5</td>
+        <td>5</td>
+        <td>2</td>
+        <td>Local, nearest-neighbor</td>
+      </tr>
+      <tr>
+        <td>s</td>
+        <td>Skip-1</td>
+        <td>5</td>
+        <td>3</td>
+        <td>2</td>
+        <td>Medium-range skip</td>
+      </tr>
+      <tr>
+        <td>m</td>
+        <td>Skip-2</td>
+        <td>5</td>
+        <td>2</td>
+        <td>3</td>
+        <td>Long-range bridging</td>
+      </tr>
+      <tr>
+        <td>l</td>
+        <td>Mirror</td>
+        <td>5</td>
+        <td>3</td>
+        <td>2</td>
+        <td>Symmetric / palindromic</td>
+      </tr>
+      <tr>
+        <td>xl</td>
+        <td>Paired blocks</td>
+        <td>5</td>
+        <td>3</td>
+        <td>2</td>
+        <td>Hierarchical grouping</td>
+      </tr>
+      <tr>
+        <td>xxl</td>
+        <td>Bidirectional</td>
+        <td>5</td>
+        <td>2</td>
+        <td>2</td>
+        <td>Reciprocal / deep</td>
+      </tr>
+      <tr>
+        <td>5m</td>
+        <td>Ring</td>
+        <td>6</td>
+        <td>3</td>
+        <td>2</td>
+        <td>Cyclic, no endpoints</td>
+      </tr>
+      <tr>
+        <td>10m</td>
+        <td>Dual star</td>
+        <td>6</td>
+        <td>2</td>
+        <td>3</td>
+        <td>Centralized hub</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p><strong>Diameter</strong> = maximum shortest path between any two qubits. Lower diameter → faster information propagation → more global correlations. <strong>Max degree</strong> = maximum connections per qubit. Higher degree → that qubit acts as a correlation hub.</p>
+</div>
+
+<hr class="section-divider">
+
+<!-- ═══════════ §7 WHY THIS BREAKS THE LOCK ═══════════ -->
+<div class="section">
+  <div class="section-num">Section VII</div>
+  <h2>Why This Breaks the 2-Hour SELL Lock</h2>
+
+  <p>Consider the market pullback scenario from the dashboard. Price dropped from 35,800 → 35,100 (strong SELL signal), then reversed to 35,500 (pullback). At the pullback moment:</p>
+
+  <div class="eq-block solution">
+    <div class="eq-label proposed">Divergence at Pullback</div>
+
+    <p style="margin-bottom:12px"><strong>Linear chain (xs):</strong> Local correlations between adjacent features emphasize the recent price movement (still downward in short memory). Votes SELL.</p>
+
+    $$\mathbf{f}_q^{(\text{xs})} \text{ emphasizes } C_{i,i+1} \text{ (local momentum)} \implies Q_{\text{SELL}}^{(\text{xs})} > Q_{\text{BUY}}^{(\text{xs})}$$
+
+    <p style="margin-bottom:12px;margin-top:16px"><strong>Mirror topology (l):</strong> Correlates first features (short-term) with last features (long-term). The long-term features show mean reversion while short-term shows momentum. Mixed signal.</p>
+
+    $$\mathbf{f}_q^{(\text{l})} \text{ emphasizes } C_{0,5}, C_{1,4} \text{ (short↔long)} \implies Q_{\text{SELL}}^{(\text{l})} \approx Q_{\text{BUY}}^{(\text{l})}$$
+
+    <p style="margin-bottom:12px;margin-top:16px"><strong>Ring topology (5m):</strong> Cyclic correlations capture the full feature loop. Detects that the overall pattern is no longer uniformly bearish.</p>
+
+    $$\mathbf{f}_q^{(\text{5m})} \text{ emphasizes cyclic structure} \implies Q_{\text{BUY}}^{(\text{5m})} > Q_{\text{SELL}}^{(\text{5m})}$$
+  </div>
+
+  <p>Under the current system, the vote would be <strong>8–0 SELL</strong>. Under per-agent topologies, it might be <strong>5–3 SELL</strong> or <strong>4–4 TIE</strong>. This allows the confidence-based tie breaker and diversity mechanisms to actually function — they were always there in the code, but they never had disagreement to work with.</p>
+
+  <div class="callout">
+    <div class="callout-label">Key Insight</div>
+    The anti-collapse mechanisms in V5.0.6 (entropy bonus, diversity loss, exploration manager) are all designed to work when agents <em>occasionally disagree</em>. They cannot function when disagreement is structurally impossible. Per-agent topologies do not fix the training — they provide the <strong>prerequisite diversity</strong> that allows the existing fixes to operate.
+  </div>
+</div>
+
+<hr class="divider">
+
+<div style="text-align:center;padding:24px 0;color:var(--ink3);font-size:14px;font-family:'IBM Plex Mono',monospace;">
+  K1RL_QU1NT V8.7.0 → V8.8.0 · Per-Agent Entanglement Topologies<br>
+  ENG Karl Muzunze · Masvingo, Zimbabwe · February 2026
+</div>
+
+</div><!-- end page -->
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  renderMathInElement(document.body, {
+    delimiters: [
+      {left: "$$", right: "$$", display: true},
+      {left: "$", right: "$", display: false}
+    ],
+    throwOnError: false
+  });
+});
+</script>
+</body>
+</html>

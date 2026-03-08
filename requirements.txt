@@ -1,0 +1,73 @@
+# ============================================================================
+# K1RL QUASAR — HuggingFace Spaces Dependencies
+# Complete list based on quasar_main4.py imports
+# ============================================================================
+
+# Core ML Frameworks
+torch>=2.1.0,<2.3.0
+tensorflow>=2.15.0,<2.17.0
+numpy>=1.24.0,<1.27.0
+scipy>=1.11.0
+scikit-learn>=1.3.0
+
+# Quantum Computing (for quantum neural networks)
+qiskit>=0.45.0
+qiskit-aer>=0.13.0
+
+# HuggingFace Ecosystem
+huggingface_hub>=0.20.0
+transformers>=4.30.0
+
+# Web Framework & API
+flask>=3.0.0
+flask-cors>=4.0.0
+gunicorn>=21.0.0
+
+# Data Processing & Visualization
+pandas>=2.0.0,<2.3.0
+matplotlib>=3.7.0
+joblib>=1.3.0
+
+# Redis & Caching
+redis>=5.0.0
+hiredis>=2.3.0
+
+# Async & Networking
+aiohttp>=3.9.0
+websockets>=12.0
+requests>=2.31.0
+nest_asyncio>=1.6.0
+
+# System Monitoring
+psutil>=5.9.0
+
+# User Agent Parsing (for visitor tracking)
+user-agents>=2.2.0
+
+# Google Cloud (for state saving & checkpoints)
+google-cloud-storage>=2.14.0
+
+# Process Management
+supervisor>=4.2.0
+
+# Development & Debugging
+ipython>=8.0.0
+
+# Security & Environment
+python-dotenv>=1.0.0
+
+# Utilities already in stdlib (no install needed):
+# asyncio, json, logging, math, random, sys, os, re
+# pickle, collections, datetime, threading, queue, time
+# concurrent.futures, dataclasses, typing, pathlib
+# uuid, traceback, shutil, zipfile, enum, contextlib
+# signal, subprocess, base64, hashlib, hmac, secrets
+# smtplib, ssl, email
+
+# ============================================================================
+# Installation Notes:
+# - TensorFlow includes Keras 3.x
+# - Qiskit required for quantum circuit simulation
+# - All dependencies verified against quasar_main4.py imports
+# - Optimized for HuggingFace Spaces 12GB RAM environment
+# ============================================================================
