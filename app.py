@@ -28,6 +28,14 @@ import threading
 import sys
 from pathlib import Path
 
+# ── Rich visitor tracking (bot-aware, geo-located) ─────────────────────────
+try:
+    import visitor_tracker as _vt
+    _VT_AVAILABLE = True
+except Exception as _vt_err:
+    _VT_AVAILABLE = False
+    print(f"⚠️  visitor_tracker unavailable — using fallback: {_vt_err}")
+
 app = Flask(__name__)
 CORS(app)
 
@@ -51,40 +59,40 @@ LOG_FILES = {
 }
 
 # ============================================================================
-# VISITOR TRACKING
+# VISITOR TRACKING  (delegates to visitor_tracker.py when available)
 # ============================================================================
 
-active_visitors   = {}
-visitor_lock      = threading.Lock()
-all_time_visitors = set()
-VISITOR_TIMEOUT   = 120
+# Fallback simple tracker used only when visitor_tracker import fails
+_fb_active:   dict = {}
+_fb_all_time: set  = set()
+_fb_lock              = threading.Lock()
+_FB_TIMEOUT           = 120
 
 
-def track_visitor(ip):
-    with visitor_lock:
-        active_visitors[ip] = time.time()
-        all_time_visitors.add(ip)
-
-
-def get_active_visitor_count():
-    with visitor_lock:
-        now   = time.time()
-        stale = [ip for ip, ts in active_visitors.items() if now - ts > VISITOR_TIMEOUT]
-        for ip in stale:
-            del active_visitors[ip]
-        return len(active_visitors)
+def track_visitor(ip, user_agent=''):
+    if _VT_AVAILABLE:
+        _vt.track_visitor(ip, user_agent)
+    else:
+        with _fb_lock:
+            _fb_active[ip] = time.time()
+            _fb_all_time.add(ip)
 
 
 def get_visitor_stats():
-    with visitor_lock:
+    if _VT_AVAILABLE:
+        return _vt.get_stats()
+    # Fallback
+    with _fb_lock:
         now   = time.time()
-        stale = [ip for ip, ts in active_visitors.items() if now - ts > VISITOR_TIMEOUT]
+        stale = [ip for ip, ts in _fb_active.items() if now - ts > _FB_TIMEOUT]
         for ip in stale:
-            del active_visitors[ip]
+            del _fb_active[ip]
         return {
-            'active_now':      len(active_visitors),
-            'active_ips':      list(active_visitors.keys()),
-            'all_time_unique': len(all_time_visitors),
+            'active_now':      len(_fb_active),
+            'active_ips':      list(_fb_active.keys()),
+            'all_time_unique': len(_fb_all_time),
+            'bots_active':     0,
+            'bots_total':      0,
         }
 
 # ============================================================================
@@ -325,8 +333,9 @@ def get_checkpoint_info():
 def before_request():
     ip = request.headers.get('X-Forwarded-For', request.remote_addr)
     if ip:
-        ip = ip.split(',')[0].strip()
-        track_visitor(ip)
+        ip         = ip.split(',')[0].strip()
+        user_agent = request.headers.get('User-Agent', '')
+        track_visitor(ip, user_agent)
 
 # ============================================================================
 # API ENDPOINTS
@@ -395,6 +404,29 @@ def api_metrics():
 @app.route('/api/visitors')
 def api_visitors():
     return jsonify(get_visitor_stats())
+
+
+@app.route('/api/visitors/detailed')
+def api_visitors_detailed():
+    """Full visitor analytics — geographic, device, browser breakdown + session list"""
+    try:
+        if _VT_AVAILABLE:
+            stats    = _vt.get_stats()
+            detailed = _vt.get_detailed_stats()
+            all_v    = _vt.get_all_visitors()
+            return jsonify({
+                **stats,
+                **detailed,
+                'visitors':  all_v.get('visitors', []),
+                'timestamp': datetime.now().isoformat(),
+            })
+        # Fallback when visitor_tracker not available
+        basic = get_visitor_stats()
+        return jsonify({**basic, 'visitors': [], 'countries': {},
+                        'devices': {}, 'browsers': {}, 'cities': {},
+                        'timestamp': datetime.now().isoformat()})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/status')
