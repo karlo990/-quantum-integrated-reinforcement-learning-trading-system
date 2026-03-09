@@ -948,6 +948,381 @@
             font-family: 'Space Mono', monospace;
         }
 
+        .visitor-badge {
+            cursor: pointer;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .visitor-badge:hover {
+            border-color: rgba(0,212,170,0.55);
+            box-shadow: 0 0 18px rgba(0,212,170,0.15);
+        }
+        .visitor-badge-arrow {
+            color: rgba(0,212,170,0.5);
+            font-size: 1.1rem;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+        .visitor-badge:hover .visitor-badge-arrow { color: #00d4aa; }
+
+        /* ============ VISITOR ANALYTICS MODAL ============ */
+        .va-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,4,12,0.85);
+            backdrop-filter: blur(6px);
+            z-index: 9000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .va-overlay.open { display: flex; }
+
+        .va-modal {
+            background: #000d1a;
+            border: 1px solid rgba(0,212,255,0.18);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 960px;
+            max-height: 90vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            box-shadow: 0 32px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(0,212,255,0.06);
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0,212,255,0.2) transparent;
+        }
+        .va-modal::-webkit-scrollbar { width: 4px; }
+        .va-modal::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.2); border-radius: 4px; }
+
+        /* --- Header --- */
+        .va-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding: 24px 28px 20px;
+            border-bottom: 1px solid rgba(0,212,255,0.1);
+            background: rgba(0,16,32,0.6);
+        }
+        .va-header-brand {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 0.3em;
+            color: rgba(255,255,255,0.35);
+            margin-bottom: 4px;
+        }
+        .va-header-brand span { color: #00d4ff; }
+        .va-header-title {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 0.18em;
+            color: #fff;
+        }
+        .va-header-sub {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.7rem;
+            letter-spacing: 0.12em;
+            color: rgba(255,255,255,0.3);
+            margin-top: 4px;
+            text-transform: uppercase;
+        }
+        .va-header-right {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .va-live-pill {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            background: rgba(0,255,136,0.08);
+            border: 1px solid rgba(0,255,136,0.25);
+            border-radius: 100px;
+            padding: 5px 14px;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.65rem;
+            letter-spacing: 0.2em;
+            color: #00ff88;
+        }
+        .va-live-dot {
+            width: 6px; height: 6px;
+            background: #00ff88;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        .va-close {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: rgba(255,255,255,0.6);
+            font-size: 1.3rem;
+            width: 36px; height: 36px;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s;
+        }
+        .va-close:hover { background: rgba(255,68,102,0.15); border-color: rgba(255,68,102,0.4); color: #ff4466; }
+
+        /* --- KPI Strip --- */
+        .va-kpi-strip {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0;
+            border-bottom: 1px solid rgba(0,212,255,0.1);
+        }
+        .va-kpi {
+            padding: 20px 24px;
+            border-right: 1px solid rgba(0,212,255,0.08);
+        }
+        .va-kpi:last-child { border-right: none; }
+        .va-kpi-value {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: #00d4ff;
+            line-height: 1;
+        }
+        .va-kpi-warn .va-kpi-value { color: rgba(255,170,0,0.8); }
+        .va-kpi-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.6rem;
+            letter-spacing: 0.18em;
+            color: rgba(255,255,255,0.4);
+            margin-top: 6px;
+        }
+        .va-kpi-sub {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.2);
+            margin-top: 2px;
+        }
+
+        /* --- Mid layout --- */
+        .va-mid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            border-bottom: 1px solid rgba(0,212,255,0.1);
+        }
+        .va-section-stack { display: flex; flex-direction: column; }
+        .va-section {
+            padding: 20px 24px;
+            border-right: 1px solid rgba(0,212,255,0.08);
+        }
+        .va-section-stack .va-section { border-right: none; }
+        .va-section-stack .va-section:first-child {
+            border-bottom: 1px solid rgba(0,212,255,0.08);
+        }
+        .va-section-full {
+            border-right: none;
+            padding: 20px 24px;
+        }
+        .va-section-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.6rem;
+            letter-spacing: 0.2em;
+            color: rgba(255,255,255,0.35);
+            margin-bottom: 14px;
+            text-transform: uppercase;
+        }
+        .va-section-dot {
+            width: 6px; height: 6px;
+            background: #00d4ff;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .va-dot-green { background: #00ff88; }
+        .va-session-badge {
+            margin-left: auto;
+            background: rgba(0,212,255,0.1);
+            border: 1px solid rgba(0,212,255,0.2);
+            border-radius: 100px;
+            padding: 2px 10px;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.6rem;
+            color: #00d4ff;
+        }
+
+        /* --- Tables --- */
+        .va-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.78rem;
+        }
+        .va-table thead th {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.58rem;
+            letter-spacing: 0.14em;
+            color: rgba(255,255,255,0.3);
+            text-align: left;
+            padding: 0 8px 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.07);
+        }
+        .va-table thead th.right { text-align: right; }
+        .va-table tbody td {
+            font-family: 'Outfit', sans-serif;
+            color: rgba(255,255,255,0.75);
+            padding: 8px 8px 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            vertical-align: middle;
+        }
+        .va-table tbody td.right { text-align: right; }
+        .va-table tbody tr:last-child td { border-bottom: none; }
+        .va-table tbody tr:hover td { background: rgba(0,212,255,0.03); }
+
+        /* Geo bar */
+        .va-geo-bar-wrap { width: 80px; }
+        .va-geo-bar-track {
+            background: rgba(255,255,255,0.06);
+            border-radius: 2px;
+            height: 4px;
+            overflow: hidden;
+        }
+        .va-geo-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #00ff88);
+            border-radius: 2px;
+            transition: width 0.6s ease;
+        }
+        .va-pct { font-family: 'Space Mono', monospace; font-size: 0.65rem; color: rgba(255,255,255,0.3); }
+        .va-num { font-family: 'Space Mono', monospace; color: #00d4ff; }
+
+        /* Session table */
+        .va-table-scroll { overflow-x: auto; }
+        .va-table-sessions { min-width: 640px; }
+        .va-status-online {
+            display: inline-flex; align-items: center; gap: 5px;
+            font-family: 'Space Mono', monospace; font-size: 0.6rem;
+            letter-spacing: 0.1em; color: #00ff88;
+        }
+        .va-status-online::before {
+            content: ''; width: 6px; height: 6px;
+            background: #00ff88; border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        .va-status-offline {
+            font-family: 'Space Mono', monospace; font-size: 0.6rem;
+            letter-spacing: 0.1em; color: rgba(255,255,255,0.2);
+        }
+        .va-status-bot {
+            font-family: 'Space Mono', monospace; font-size: 0.6rem;
+            letter-spacing: 0.1em; color: rgba(255,170,0,0.6);
+        }
+
+        /* Device grid */
+        .va-device-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+        .va-device-card {
+            background: rgba(0,20,40,0.5);
+            border: 1px solid rgba(0,212,255,0.1);
+            border-radius: 10px;
+            padding: 12px 8px;
+            text-align: center;
+        }
+        .va-device-bot {
+            border-color: rgba(255,170,0,0.15);
+        }
+        .va-device-icon { font-size: 1.3rem; margin-bottom: 6px; }
+        .va-device-count {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #00d4ff;
+        }
+        .va-device-bot .va-device-count { color: rgba(255,170,0,0.75); }
+        .va-device-label {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.55rem;
+            letter-spacing: 0.14em;
+            color: rgba(255,255,255,0.3);
+            margin-top: 3px;
+        }
+
+        /* Browser bar list */
+        .va-bar-list { display: flex; flex-direction: column; gap: 8px; }
+        .va-bar-row { display: flex; flex-direction: column; gap: 3px; }
+        .va-bar-meta {
+            display: flex;
+            justify-content: space-between;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.6);
+        }
+        .va-bar-meta span:last-child {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.65rem;
+            color: rgba(255,255,255,0.3);
+        }
+        .va-bar-track {
+            background: rgba(255,255,255,0.06);
+            border-radius: 3px;
+            height: 5px;
+            overflow: hidden;
+        }
+        .va-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #00d4aa);
+            border-radius: 3px;
+            transition: width 0.6s ease;
+        }
+
+        /* Footer */
+        .va-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 28px;
+            border-top: 1px solid rgba(0,212,255,0.1);
+            background: rgba(0,8,16,0.5);
+        }
+        #va-last-updated {
+            font-family: 'Space Mono', monospace;
+            font-size: 0.62rem;
+            color: rgba(255,255,255,0.2);
+            letter-spacing: 0.08em;
+        }
+        .va-refresh-btn {
+            background: rgba(0,212,255,0.08);
+            border: 1px solid rgba(0,212,255,0.2);
+            border-radius: 8px;
+            color: #00d4ff;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.65rem;
+            letter-spacing: 0.15em;
+            padding: 7px 18px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .va-refresh-btn:hover { background: rgba(0,212,255,0.15); }
+
+        /* Misc */
+        .va-loading {
+            color: rgba(255,255,255,0.2);
+            font-family: 'Space Mono', monospace;
+            font-size: 0.7rem;
+            text-align: center;
+            padding: 16px 0;
+        }
+        .va-flag { margin-right: 6px; }
+
+        /* Responsive */
+        @media (max-width: 700px) {
+            .va-kpi-strip { grid-template-columns: repeat(2, 1fr); }
+            .va-mid { grid-template-columns: 1fr; }
+            .va-section { border-right: none; border-bottom: 1px solid rgba(0,212,255,0.08); }
+            .va-device-grid { grid-template-columns: repeat(2, 1fr); }
+            .va-modal { border-radius: 12px; }
+            .va-header { padding: 18px 18px 16px; }
+            .va-kpi { padding: 16px 18px; }
+            .va-section { padding: 16px 18px; }
+        }
+
         /* ============ CONNECTION STATUS ============ */
         .connection-status {
             position: fixed;
@@ -1295,13 +1670,158 @@
     <!-- Connection Status -->
     <div class="connection-status connection-ok" id="connectionStatus">● Connected</div>
 
-    <!-- Visitor Counter -->
-    <div class="visitor-badge">
+    <!-- Visitor Counter (click opens analytics modal) -->
+    <div class="visitor-badge" onclick="openVisitorModal()" title="View visitor analytics">
         <div class="visitor-dot"></div>
         <div>
             <span class="visitor-count" id="activeVisitors">—</span>
             <span class="visitor-label">Online</span>
             <span class="visitor-total" id="totalVisitors">— total</span>
+        </div>
+        <div class="visitor-badge-arrow">›</div>
+    </div>
+
+    <!-- ====== VISITOR ANALYTICS MODAL ====== -->
+    <div class="va-overlay" id="vaOverlay" onclick="closeVisitorModal(event)">
+        <div class="va-modal" id="vaModal">
+
+            <!-- Header -->
+            <div class="va-header">
+                <div class="va-header-left">
+                    <div class="va-header-brand">K1RL <span>QUASAR</span></div>
+                    <div class="va-header-title">VISITOR ANALYTICS</div>
+                    <div class="va-header-sub">QUANTITATIVE INTELLIGENCE OBSERVATORY — LIVE SESSION DATA</div>
+                </div>
+                <div class="va-header-right">
+                    <div class="va-live-pill"><span class="va-live-dot"></span>LIVE</div>
+                    <button class="va-close" onclick="closeVisitorModal()">&times;</button>
+                </div>
+            </div>
+
+            <!-- KPI Strip -->
+            <div class="va-kpi-strip">
+                <div class="va-kpi">
+                    <div class="va-kpi-value" id="va-humans-online">—</div>
+                    <div class="va-kpi-label">HUMANS ONLINE</div>
+                    <div class="va-kpi-sub">Active &lt; 2 min</div>
+                </div>
+                <div class="va-kpi">
+                    <div class="va-kpi-value" id="va-total-humans">—</div>
+                    <div class="va-kpi-label">TOTAL HUMANS</div>
+                    <div class="va-kpi-sub">All-time unique</div>
+                </div>
+                <div class="va-kpi va-kpi-warn">
+                    <div class="va-kpi-value" id="va-bots-total">—</div>
+                    <div class="va-kpi-label">BOTS FILTERED</div>
+                    <div class="va-kpi-sub">Crawlers / scrapers</div>
+                </div>
+                <div class="va-kpi">
+                    <div class="va-kpi-value" id="va-countries">—</div>
+                    <div class="va-kpi-label">COUNTRIES</div>
+                    <div class="va-kpi-sub">Geographic reach</div>
+                </div>
+            </div>
+
+            <!-- Mid section: Geo + Devices -->
+            <div class="va-mid">
+                <!-- Geographic Distribution -->
+                <div class="va-section">
+                    <div class="va-section-header">
+                        <span class="va-section-dot"></span>
+                        GEOGRAPHIC DISTRIBUTION
+                    </div>
+                    <table class="va-table" id="va-geo-table">
+                        <thead>
+                            <tr>
+                                <th>COUNTRY</th>
+                                <th class="right">VISITORS</th>
+                                <th class="right">SHARE</th>
+                                <th class="right">BAR</th>
+                            </tr>
+                        </thead>
+                        <tbody id="va-geo-body">
+                            <tr><td colspan="4" class="va-loading">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Device + Browser Breakdown -->
+                <div class="va-section-stack">
+                    <!-- Devices -->
+                    <div class="va-section">
+                        <div class="va-section-header">
+                            <span class="va-section-dot"></span>
+                            DEVICE BREAKDOWN
+                        </div>
+                        <div class="va-device-grid" id="va-device-grid">
+                            <div class="va-device-card" id="va-dev-pc">
+                                <div class="va-device-icon">⬛</div>
+                                <div class="va-device-count">—</div>
+                                <div class="va-device-label">DESKTOP</div>
+                            </div>
+                            <div class="va-device-card" id="va-dev-mobile">
+                                <div class="va-device-icon">📱</div>
+                                <div class="va-device-count">—</div>
+                                <div class="va-device-label">MOBILE</div>
+                            </div>
+                            <div class="va-device-card" id="va-dev-tablet">
+                                <div class="va-device-icon">📋</div>
+                                <div class="va-device-count">—</div>
+                                <div class="va-device-label">TABLET</div>
+                            </div>
+                            <div class="va-device-card va-device-bot" id="va-dev-bot">
+                                <div class="va-device-icon">🤖</div>
+                                <div class="va-device-count">—</div>
+                                <div class="va-device-label">BOTS</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Browsers -->
+                    <div class="va-section">
+                        <div class="va-section-header">
+                            <span class="va-section-dot"></span>
+                            BROWSER SHARE
+                        </div>
+                        <div id="va-browser-list" class="va-bar-list">
+                            <div class="va-loading">Loading…</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Sessions Table -->
+            <div class="va-section va-section-full">
+                <div class="va-section-header">
+                    <span class="va-section-dot va-dot-green"></span>
+                    SESSION LOG
+                    <span class="va-session-badge" id="va-session-count">0 records</span>
+                </div>
+                <div class="va-table-scroll">
+                    <table class="va-table va-table-sessions">
+                        <thead>
+                            <tr>
+                                <th>STATUS</th>
+                                <th>IP (MASKED)</th>
+                                <th>LOCATION</th>
+                                <th>BROWSER</th>
+                                <th>OS</th>
+                                <th class="right">VISITS</th>
+                                <th>LAST SEEN</th>
+                            </tr>
+                        </thead>
+                        <tbody id="va-sessions-body">
+                            <tr><td colspan="7" class="va-loading">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="va-footer">
+                <span id="va-last-updated">—</span>
+                <button class="va-refresh-btn" onclick="loadVisitorModal()">↻ REFRESH</button>
+            </div>
         </div>
     </div>
 
@@ -3397,7 +3917,7 @@
                 });
         }
 
-        // Visitors
+        // Visitors (badge — humans only, bots filtered)
         function updateVisitors() {
             fetch('/api/visitors')
                 .then(r => r.json())
@@ -3584,7 +4104,188 @@
         console.log('Platform: HuggingFace Spaces (Redis-backed)');
         console.log('Signal Tracking: Log-based extraction (replaced Ably WebSocket)');
         console.log('Target Agent:', TARGET_AGENT);
-        console.log('API Endpoints: /api/metrics, /logs/quasar_engine, /api/visitors, /api/accuracy/*');
+        console.log('API Endpoints: /api/metrics, /logs/quasar_engine, /api/visitors, /api/visitors/detailed, /api/accuracy/*');
+
+        // =========================================================
+        // VISITOR ANALYTICS MODAL
+        // =========================================================
+
+        function openVisitorModal() {
+            document.getElementById('vaOverlay').classList.add('open');
+            document.body.style.overflow = 'hidden';
+            loadVisitorModal();
+        }
+
+        function closeVisitorModal(evt) {
+            // Close on overlay click (not modal itself) or explicit call
+            if (evt && evt.target !== document.getElementById('vaOverlay')) return;
+            document.getElementById('vaOverlay').classList.remove('open');
+            document.body.style.overflow = '';
+        }
+
+        // Close on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeVisitorModal();
+        });
+
+        function _fmtNum(n) {
+            if (n === undefined || n === null) return '—';
+            return Number(n).toLocaleString();
+        }
+
+        function _timeSince(lastSeen) {
+            if (!lastSeen) return '—';
+            try {
+                const d = new Date(lastSeen.replace(' ', 'T'));
+                const secs = Math.floor((Date.now() - d.getTime()) / 1000);
+                if (secs < 60) return secs + 's ago';
+                if (secs < 3600) return Math.floor(secs/60) + 'm ago';
+                if (secs < 86400) return Math.floor(secs/3600) + 'h ago';
+                return Math.floor(secs/86400) + 'd ago';
+            } catch(e) { return lastSeen; }
+        }
+
+        function _countryFlag(code) {
+            if (!code || code === '??' || code === 'LO') return '';
+            try {
+                return code.toUpperCase().replace(/./g, c =>
+                    String.fromCodePoint(0x1F1E6 - 65 + c.charCodeAt(0))) + ' ';
+            } catch(e) { return ''; }
+        }
+
+        function loadVisitorModal() {
+            fetch('/api/visitors/detailed')
+                .then(r => r.json())
+                .then(data => renderVisitorModal(data))
+                .catch(err => {
+                    document.getElementById('va-sessions-body').innerHTML =
+                        '<tr><td colspan="7" class="va-loading">Failed to load — ' + err.message + '</td></tr>';
+                });
+        }
+
+        function renderVisitorModal(d) {
+            // KPI strip
+            document.getElementById('va-humans-online').textContent = _fmtNum(d.active_now);
+            document.getElementById('va-total-humans').textContent  = _fmtNum(d.all_time_unique || d.total_unique);
+            document.getElementById('va-bots-total').textContent    = _fmtNum(d.bots_total);
+            document.getElementById('va-countries').textContent     = _fmtNum(Object.keys(d.countries || {}).length);
+
+            // Geo table
+            const geoBody = document.getElementById('va-geo-body');
+            const countries = d.countries || {};
+            const totalHumans = d.all_time_unique || d.total_unique || 1;
+            if (Object.keys(countries).length === 0) {
+                geoBody.innerHTML = '<tr><td colspan="4" class="va-loading">No data yet</td></tr>';
+            } else {
+                geoBody.innerHTML = Object.entries(countries)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([country, count]) => {
+                        const pct = ((count / totalHumans) * 100).toFixed(1);
+                        const barW = Math.min(100, (count / Math.max(...Object.values(countries))) * 100).toFixed(1);
+                        const code = _getCountryCode(country);
+                        return `<tr>
+                            <td><span class="va-flag">${_countryFlag(code)}</span>${country}</td>
+                            <td class="right va-num">${_fmtNum(count)}</td>
+                            <td class="right va-pct">${pct}%</td>
+                            <td class="right va-geo-bar-wrap">
+                                <div class="va-geo-bar-track">
+                                    <div class="va-geo-bar-fill" style="width:${barW}%"></div>
+                                </div>
+                            </td>
+                        </tr>`;
+                    }).join('');
+            }
+
+            // Devices
+            const dev = d.devices || {};
+            document.querySelector('#va-dev-pc .va-device-count').textContent     = _fmtNum(dev.pc);
+            document.querySelector('#va-dev-mobile .va-device-count').textContent  = _fmtNum(dev.mobile);
+            document.querySelector('#va-dev-tablet .va-device-count').textContent  = _fmtNum(dev.tablet);
+            document.querySelector('#va-dev-bot .va-device-count').textContent     = _fmtNum(dev.bot);
+
+            // Browsers
+            const browsers = d.browsers || {};
+            const browserList = document.getElementById('va-browser-list');
+            const maxB = Math.max(...Object.values(browsers), 1);
+            if (Object.keys(browsers).length === 0) {
+                browserList.innerHTML = '<div class="va-loading">No data yet</div>';
+            } else {
+                browserList.innerHTML = Object.entries(browsers)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 8)
+                    .map(([browser, count]) => {
+                        const pct = ((count / totalHumans) * 100).toFixed(1);
+                        const barW = ((count / maxB) * 100).toFixed(1);
+                        return `<div class="va-bar-row">
+                            <div class="va-bar-meta">
+                                <span>${browser || 'Unknown'}</span>
+                                <span>${_fmtNum(count)} · ${pct}%</span>
+                            </div>
+                            <div class="va-bar-track">
+                                <div class="va-bar-fill" style="width:${barW}%"></div>
+                            </div>
+                        </div>`;
+                    }).join('');
+            }
+
+            // Sessions table
+            const visitors = d.visitors || [];
+            document.getElementById('va-session-count').textContent = _fmtNum(visitors.length) + ' records';
+            const sessBody = document.getElementById('va-sessions-body');
+            if (visitors.length === 0) {
+                sessBody.innerHTML = '<tr><td colspan="7" class="va-loading">No sessions recorded yet</td></tr>';
+            } else {
+                sessBody.innerHTML = visitors.map(v => {
+                    const loc = v.location || {};
+                    const dev2 = v.device || {};
+                    const locStr = [loc.city, loc.country].filter(Boolean).join(', ') || '—';
+                    const browser = (dev2.browser || '—').split(' ').slice(0, 2).join(' ');
+                    const os = (dev2.os || '—').split(' ').slice(0, 2).join(' ');
+
+                    let statusHtml;
+                    if (v.is_bot) {
+                        statusHtml = '<span class="va-status-bot">BOT</span>';
+                    } else if (v.is_active) {
+                        const ago = v.seconds_ago !== null ? (v.seconds_ago < 60 ? v.seconds_ago + 's' : Math.floor(v.seconds_ago/60) + 'm') : '—';
+                        statusHtml = `<span class="va-status-online">ONLINE · ${ago}</span>`;
+                    } else {
+                        statusHtml = '<span class="va-status-offline">OFFLINE</span>';
+                    }
+
+                    return `<tr>
+                        <td>${statusHtml}</td>
+                        <td style="font-family:'Space Mono',monospace;font-size:0.72rem;color:rgba(255,255,255,0.5)">${v.ip_masked || '—'}</td>
+                        <td>${_countryFlag(_getCountryCode(loc.country || ''))}${locStr}</td>
+                        <td style="color:rgba(255,255,255,0.55)">${browser}</td>
+                        <td style="color:rgba(255,255,255,0.4)">${os}</td>
+                        <td class="right va-num">${_fmtNum(v.visits)}</td>
+                        <td style="color:rgba(255,255,255,0.3);font-size:0.72rem">${_timeSince(v.last_seen)}</td>
+                    </tr>`;
+                }).join('');
+            }
+
+            // Footer timestamp
+            const ts = d.timestamp ? new Date(d.timestamp).toLocaleString() : new Date().toLocaleString();
+            document.getElementById('va-last-updated').textContent = 'LAST UPDATED: ' + ts;
+        }
+
+        // Minimal country-to-code map for flags (top countries)
+        const _CC = {
+            'United States':'US','United Kingdom':'GB','Germany':'DE','France':'FR',
+            'Canada':'CA','Australia':'AU','Japan':'JP','China':'CN','India':'IN',
+            'Brazil':'BR','Netherlands':'NL','Sweden':'SE','Norway':'NO','Finland':'FI',
+            'Denmark':'DK','Switzerland':'CH','Austria':'AT','Spain':'ES','Italy':'IT',
+            'Poland':'PL','Russia':'RU','South Korea':'KR','Singapore':'SG','Mexico':'MX',
+            'Argentina':'AR','Turkey':'TR','Saudi Arabia':'SA','UAE':'AE','Israel':'IL',
+            'South Africa':'ZA','Nigeria':'NG','Egypt':'EG','Pakistan':'PK',
+            'Indonesia':'ID','Malaysia':'MY','Thailand':'TH','Vietnam':'VN',
+            'Philippines':'PH','New Zealand':'NZ','Portugal':'PT','Belgium':'BE',
+            'Czech Republic':'CZ','Romania':'RO','Hungary':'HU','Ukraine':'UA',
+            'Greece':'GR','Hong Kong':'HK','Taiwan':'TW','Colombia':'CO','Chile':'CL',
+            'Local':'LO'
+        };
+        function _getCountryCode(name) { return _CC[name] || '??'; }
+
     </script>
 </body>
 </html>

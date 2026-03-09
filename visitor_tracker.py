@@ -240,90 +240,144 @@ def cleanup_inactive():
             del active_visitors[ip]
 
 def get_stats():
-    """Get basic visitor statistics (for API compatibility)"""
+    """Get basic visitor statistics — bots are excluded from headline counts"""
     cleanup_inactive()
     with visitor_lock:
+        active_ips = list(active_visitors.keys())
+
+        # Separate humans from bots using stored device info
+        human_active = [ip for ip in active_ips
+                        if not all_time_visitors.get(ip, {}).get('device', {}).get('is_bot', False)]
+        bot_active   = [ip for ip in active_ips
+                        if all_time_visitors.get(ip, {}).get('device', {}).get('is_bot', False)]
+
+        human_total = sum(1 for data in all_time_visitors.values()
+                         if not data.get('device', {}).get('is_bot', False))
+        bot_total   = len(all_time_visitors) - human_total
+
         return {
-            'active_now': len(active_visitors),
-            'active_ips': list(active_visitors.keys()),
-            'all_time_unique': len(all_time_visitors),
+            'active_now':      len(human_active),
+            'active_ips':      human_active,
+            'all_time_unique': human_total,
+            'bots_active':     len(bot_active),
+            'bots_total':      bot_total,
         }
 
 def get_detailed_stats():
-    """Get detailed visitor statistics"""
+    """Get detailed visitor statistics — bots excluded from human headline counts"""
     cleanup_inactive()
     with visitor_lock:
         active_ips = list(active_visitors.keys())
-        
-        # Country stats
+
+        # Countries/cities tracked for humans only; bots counted separately
         countries = {}
-        cities = {}
-        devices = {'mobile': 0, 'tablet': 0, 'pc': 0, 'bot': 0}
-        browsers = {}
-        
+        cities    = {}
+        devices   = {'mobile': 0, 'tablet': 0, 'pc': 0, 'bot': 0}
+        browsers  = {}
+
+        human_active = [ip for ip in active_ips
+                        if not all_time_visitors.get(ip, {}).get('device', {}).get('is_bot', False)]
+        human_total  = 0
+
         for ip, data in all_time_visitors.items():
-            # Country stats
-            country = data.get('location', {}).get('country', 'Unknown')
-            countries[country] = countries.get(country, 0) + 1
-            
-            # City stats
-            city = data.get('location', {}).get('city', 'Unknown')
-            cities[city] = cities.get(city, 0) + 1
-            
-            # Device stats
             device_info = data.get('device', {})
-            if device_info.get('is_mobile'):
+            is_bot = device_info.get('is_bot', False)
+
+            # Device bucket
+            if is_bot:
+                devices['bot'] += 1
+            elif device_info.get('is_mobile'):
                 devices['mobile'] += 1
             elif device_info.get('is_tablet'):
                 devices['tablet'] += 1
-            elif device_info.get('is_bot'):
-                devices['bot'] += 1
             else:
                 devices['pc'] += 1
-            
-            # Browser stats
-            browser = device_info.get('browser', 'Unknown').split()[0]  # Get browser name only
-            browsers[browser] = browsers.get(browser, 0) + 1
-        
+
+            # Country / city / browser stats — humans only
+            if not is_bot:
+                human_total += 1
+                country = data.get('location', {}).get('country', 'Unknown')
+                countries[country] = countries.get(country, 0) + 1
+
+                city = data.get('location', {}).get('city', 'Unknown')
+                cities[city] = cities.get(city, 0) + 1
+
+                browser = device_info.get('browser', 'Unknown').split()[0]
+                browsers[browser] = browsers.get(browser, 0) + 1
+
+        bot_total = len(all_time_visitors) - human_total
+
         return {
-            'total_unique': len(all_time_visitors),
-            'active_now': len(active_ips),
-            'countries': dict(sorted(countries.items(), key=lambda x: x[1], reverse=True)[:10]),
-            'cities': dict(sorted(cities.items(), key=lambda x: x[1], reverse=True)[:10]),
-            'devices': devices,
-            'browsers': dict(sorted(browsers.items(), key=lambda x: x[1], reverse=True)[:10]),
+            'total_unique':  human_total,
+            'bots_total':    bot_total,
+            'active_now':    len(human_active),
+            'bots_active':   len(active_ips) - len(human_active),
+            'countries':     dict(sorted(countries.items(), key=lambda x: x[1], reverse=True)[:15]),
+            'cities':        dict(sorted(cities.items(),    key=lambda x: x[1], reverse=True)[:15]),
+            'devices':       devices,
+            'browsers':      dict(sorted(browsers.items(),  key=lambda x: x[1], reverse=True)[:10]),
         }
 
+def _mask_ip(ip):
+    """Mask last octet of IPv4 for privacy, or last segment of IPv6"""
+    try:
+        parts = ip.split('.')
+        if len(parts) == 4:
+            return f"{parts[0]}.{parts[1]}.{parts[2]}.•••"
+        parts6 = ip.split(':')
+        if len(parts6) >= 4:
+            return ':'.join(parts6[:4]) + ':••••'
+    except Exception:
+        pass
+    return ip[:8] + '•••'
+
+
 def get_all_visitors():
-    """Get ALL visitor details with location and device"""
+    """Get all visitor details with location, device, and masked IP"""
     cleanup_inactive()
     with visitor_lock:
-        active_ips = list(active_visitors.keys())
-        
+        active_ips  = set(active_visitors.keys())
+        active_seen = {ip: active_visitors[ip]['last_seen'] for ip in active_ips}
+
         visitors_list = []
         for ip, data in all_time_visitors.items():
+            device_info = data.get('device', {})
+            is_bot      = device_info.get('is_bot', False)
+            is_active   = ip in active_ips
+
+            # Calculate seconds since last activity for active visitors
+            seconds_ago = None
+            if is_active:
+                seconds_ago = int(time.time() - active_seen[ip])
+
             visitors_list.append({
-                'ip': ip,
-                'is_active': ip in active_ips,
-                'first_seen': data.get('first_seen', ''),
-                'last_seen': data.get('last_seen', ''),
-                'visits': data.get('visits', 1),
-                'location': data.get('location', {}),
-                'device': data.get('device', {}),
+                'ip_masked':        _mask_ip(ip),
+                'is_active':        is_active,
+                'is_bot':           is_bot,
+                'seconds_ago':      seconds_ago,
+                'first_seen':       data.get('first_seen', ''),
+                'last_seen':        data.get('last_seen', ''),
+                'visits':           data.get('visits', 1),
+                'location':         data.get('location', {}),
+                'device':           device_info,
                 'user_agent_count': len(data.get('user_agent_history', []))
             })
-        
-        # Sort: active first, then by visits, then by last_seen
+
+        # Sort: active first, then bots last, then by visits desc
         visitors_list.sort(
-            key=lambda x: (not x['is_active'], -x['visits'], x['last_seen']), 
-            reverse=False
+            key=lambda x: (not x['is_active'], x['is_bot'], -x['visits'])
         )
-        
+
+        human_active = [v for v in visitors_list if v['is_active'] and not v['is_bot']]
+        human_total  = sum(1 for v in visitors_list if not v['is_bot'])
+        bot_total    = len(visitors_list) - human_total
+
         return {
-            'total_unique': len(all_time_visitors),
-            'active_now': len(active_ips),
-            'visitors': visitors_list[:100],  # Limit to first 100 for performance
-            'showing_count': min(100, len(visitors_list))
+            'total_unique':    human_total,
+            'bots_total':      bot_total,
+            'active_now':      len(human_active),
+            'visitors':        visitors_list[:100],
+            'showing_count':   min(100, len(visitors_list))
         }
 
 # ============================================================================
