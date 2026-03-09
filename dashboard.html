@@ -4155,20 +4155,55 @@
 
         function loadVisitorModal() {
             fetch('/api/visitors/detailed')
-                .then(r => r.json())
-                .then(data => renderVisitorModal(data))
+                .then(r => {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.json();
+                })
+                .then(data => {
+                    try { renderVisitorModal(data); }
+                    catch(e) { console.error('renderVisitorModal threw:', e); _visitorModalFallback(); }
+                })
                 .catch(err => {
-                    document.getElementById('va-sessions-body').innerHTML =
-                        '<tr><td colspan="7" class="va-loading">Failed to load — ' + err.message + '</td></tr>';
+                    console.error('Visitor detailed fetch failed:', err);
+                    // Fallback: show what we can from the basic /api/visitors endpoint
+                    _visitorModalFallback();
                 });
         }
 
+        function _visitorModalFallback() {
+            fetch('/api/visitors')
+                .then(r => r.json())
+                .then(v => {
+                    renderVisitorModal({
+                        active_now:      v.active_now      || 0,
+                        all_time_unique: v.all_time_unique  || 0,
+                        bots_total:      v.bots_total       || 0,
+                        total_unique:    v.all_time_unique  || 0,
+                        countries: {}, cities: {}, devices: {}, browsers: {},
+                        visitors: [],
+                        timestamp: new Date().toISOString()
+                    });
+                })
+                .catch(() => {
+                    ['va-geo-body','va-sessions-body'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el) el.innerHTML = '<tr><td colspan="7" class="va-loading" style="color:rgba(255,100,100,0.5)">Could not connect to analytics service</td></tr>';
+                    });
+                    const bl = document.getElementById('va-browser-list');
+                    if (bl) bl.innerHTML = '<div class="va-loading" style="color:rgba(255,100,100,0.5)">Unavailable</div>';
+                });
+        }
+
+        function _setId(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+        function _setQs(sel, val) { const el = document.querySelector(sel); if (el) el.textContent = val; }
+
         function renderVisitorModal(d) {
+            if (!d) return;
             // KPI strip
-            document.getElementById('va-humans-online').textContent = _fmtNum(d.active_now);
-            document.getElementById('va-total-humans').textContent  = _fmtNum(d.all_time_unique || d.total_unique);
-            document.getElementById('va-bots-total').textContent    = _fmtNum(d.bots_total);
-            document.getElementById('va-countries').textContent     = _fmtNum(Object.keys(d.countries || {}).length);
+            _setId('va-humans-online', _fmtNum(d.active_now));
+            _setId('va-total-humans',  _fmtNum(d.all_time_unique || d.total_unique));
+            _setId('va-bots-total',    _fmtNum(d.bots_total));
+            _setId('va-countries',     _fmtNum(Object.keys(d.countries || {}).length));
 
             // Geo table
             const geoBody = document.getElementById('va-geo-body');
@@ -4198,10 +4233,10 @@
 
             // Devices
             const dev = d.devices || {};
-            document.querySelector('#va-dev-pc .va-device-count').textContent     = _fmtNum(dev.pc);
-            document.querySelector('#va-dev-mobile .va-device-count').textContent  = _fmtNum(dev.mobile);
-            document.querySelector('#va-dev-tablet .va-device-count').textContent  = _fmtNum(dev.tablet);
-            document.querySelector('#va-dev-bot .va-device-count').textContent     = _fmtNum(dev.bot);
+            _setQs('#va-dev-pc .va-device-count',     _fmtNum(dev.pc));
+            _setQs('#va-dev-mobile .va-device-count',  _fmtNum(dev.mobile));
+            _setQs('#va-dev-tablet .va-device-count',  _fmtNum(dev.tablet));
+            _setQs('#va-dev-bot .va-device-count',     _fmtNum(dev.bot));
 
             // Browsers
             const browsers = d.browsers || {};
@@ -4230,7 +4265,7 @@
 
             // Sessions table
             const visitors = d.visitors || [];
-            document.getElementById('va-session-count').textContent = _fmtNum(visitors.length) + ' records';
+            _setId('va-session-count', _fmtNum(visitors.length) + ' records');
             const sessBody = document.getElementById('va-sessions-body');
             if (visitors.length === 0) {
                 sessBody.innerHTML = '<tr><td colspan="7" class="va-loading">No sessions recorded yet</td></tr>';
